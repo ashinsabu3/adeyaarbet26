@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import {
-  FRIENDS, BETS, ACTIVITY, GROUPS, BRACKET,
+  FRIENDS, BETS, ACTIVITY, GROUPS, BRACKET, MATCHES,
   ME_ID, getFriend, getTeam, getMatch,
   fmtMoney, fmtCompact, fmtDay, fmtDate, fmtTimeIST,
 } from '@/lib/data';
@@ -383,7 +383,7 @@ function DMatchesScreen({ matches, onBet }) {
 }
 
 // ── Desktop Bracket ───────────────────────────────────────────
-function DBracketScreen() {
+function DBracketScreen({ matches = MATCHES }) {
   const [view, setView] = useState('groups');
 
   const r32 = BRACKET.R32?.slice(0, 8) || [];
@@ -407,28 +407,35 @@ function DBracketScreen() {
 
       {view === 'groups' && (
         <div className="desk-groups">
-          {GROUPS.map(g => (
-            <div key={g.id} className="group-card">
-              <div className="group-card__title">Group <em>{g.id}</em></div>
-              {g.teams.map((t, i) => {
-                const team = getTeam(t.code);
-                return (
-                  <div key={t.code} className={'group-row ' + (i < 2 ? 'q' : '')}>
-                    <span className="rk">{i + 1}</span>
-                    <span style={{ fontSize: 14 }}>{team.flag}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{team.name}</span>
-                    <span className="pts">{t.pts}</span>
-                  </div>
-                );
-              })}
-              <div style={{
-                fontSize: 9.5, color: 'var(--ink-3)', marginTop: 8, paddingTop: 6,
-                borderTop: '1px solid var(--line)', letterSpacing: '0.06em',
-              }}>
-                Top 2 + best 3rds advance
+          {GROUPS.map(g => {
+            const groupMatches = matches.filter(m => m.group === g.id);
+            const cities = [...new Set(groupMatches.map(m => m.venue?.split(',').pop()?.trim()).filter(Boolean))];
+            return (
+              <div key={g.id} className="group-card">
+                <div className="group-card__title">Group <em>{g.id}</em></div>
+                {g.teams.map((t, i) => {
+                  const team = getTeam(t.code);
+                  return (
+                    <div key={t.code} className={'group-row ' + (i < 2 ? 'q' : '')}>
+                      <span className="rk">{i + 1}</span>
+                      <span style={{ fontSize: 14 }}>{team.flag}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{team.name}</span>
+                      <span className="pts">{t.pts}</span>
+                    </div>
+                  );
+                })}
+                <div style={{
+                  fontSize: 9.5, color: 'var(--ink-3)', marginTop: 8, paddingTop: 6,
+                  borderTop: '1px solid var(--line)', letterSpacing: '0.06em',
+                }}>
+                  Top 2 + best 3rds advance
+                  {cities.length > 0 && (
+                    <span style={{ marginLeft: 6, opacity: 0.7 }}>· {cities.join(' · ')}</span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -728,7 +735,7 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches }) {
     >
       {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} />}
       {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} />}
-      {tab === 'bracket' && <DBracketScreen />}
+      {tab === 'bracket' && <DBracketScreen matches={matches} />}
       {tab === 'leaders' && <DLeaderboardScreen />}
       {tab === 'bets'    && <DBetsScreen />}
     </DesktopShell>

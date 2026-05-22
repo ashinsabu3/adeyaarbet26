@@ -496,7 +496,7 @@ body {
 }
 
 /* ── Group standings ───────────────────────────────────────── */
-.groups-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; }
+.groups-grid { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 0 16px; }
 .group-card {
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 12px 12px 10px;
