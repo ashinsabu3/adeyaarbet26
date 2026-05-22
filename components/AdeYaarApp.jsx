@@ -106,7 +106,7 @@ export default function AdeYaarApp() {
           <div className="scroll">
             {tab === 'home'    && <HomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} />}
             {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} />}
-            {tab === 'bracket' && <BracketScreen />}
+            {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen balance={balance} />}
             {tab === 'bets'    && <BetsScreen />}
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GROUPS, BRACKET, getTeam } from '@/lib/data';
+import { GROUPS, BRACKET, MATCHES, getTeam } from '@/lib/data';
 import { Flag } from '@/components';
 
 function BracketMatch({ home, away, tbd }) {
@@ -87,7 +87,7 @@ function KnockoutView() {
   );
 }
 
-export default function BracketScreen() {
+export default function BracketScreen({ matches = MATCHES }) {
   const [view, setView] = useState('groups');
 
   return (
@@ -114,28 +114,35 @@ export default function BracketScreen() {
 
       {view === 'groups' && (
         <div className="groups-grid">
-          {GROUPS.map(g => (
-            <div key={g.id} className="group-card">
-              <div className="group-card__title">Group <em>{g.id}</em></div>
-              {g.teams.map((t, i) => {
-                const team = getTeam(t.code);
-                return (
-                  <div key={t.code} className={'group-row ' + (i < 2 ? 'q' : '')}>
-                    <span className="rk">{i + 1}</span>
-                    <span style={{ fontSize: 14 }}>{team.flag}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600 }}>{team.code}</span>
-                    <span className="pts">{t.pts}</span>
-                  </div>
-                );
-              })}
-              <div style={{
-                fontSize: 9, color: 'var(--ink-3)', marginTop: 6, paddingTop: 6,
-                borderTop: '1px solid var(--line)', letterSpacing: '0.05em',
-              }}>
-                Top 2 + best 3rds advance
+          {GROUPS.map(g => {
+            const groupMatches = matches.filter(m => m.group === g.id);
+            const cities = [...new Set(groupMatches.map(m => m.venue?.split(',').pop()?.trim()).filter(Boolean))];
+            return (
+              <div key={g.id} className="group-card">
+                <div className="group-card__title">Group <em>{g.id}</em></div>
+                {g.teams.map((t, i) => {
+                  const team = getTeam(t.code);
+                  return (
+                    <div key={t.code} className={'group-row ' + (i < 2 ? 'q' : '')}>
+                      <span className="rk">{i + 1}</span>
+                      <span style={{ fontSize: 14 }}>{team.flag}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600 }}>{team.code}</span>
+                      <span className="pts">{t.pts}</span>
+                    </div>
+                  );
+                })}
+                <div style={{
+                  fontSize: 9, color: 'var(--ink-3)', marginTop: 6, paddingTop: 6,
+                  borderTop: '1px solid var(--line)', letterSpacing: '0.05em',
+                }}>
+                  Top 2 + best 3rds advance
+                  {cities.length > 0 && (
+                    <span style={{ marginLeft: 6, opacity: 0.7 }}>· {cities.join(' · ')}</span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

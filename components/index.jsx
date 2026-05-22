@@ -137,11 +137,12 @@ export function MatchCard({ match, onBet }) {
   const isFinished = match.status === 'finished';
 
   const stageLabel = match.group ? `Group ${match.group}` : 'Knockout';
+  const city = match.venue?.split(',').pop()?.trim();
 
   return (
     <div className="match-card">
       <div className="match-card__head">
-        <span>{stageLabel} · {fmtDate(match.date)}</span>
+        <span>{stageLabel} · {fmtDate(match.date)}{city ? ` · ${city}` : ''}</span>
         {isLive ? <LiveDot minute={match.minute} /> :
          isFinished ? <span style={{ color: 'var(--ink-3)' }}>FT</span> :
          <span style={{ fontFamily: 'var(--font-mono)' }}>{fmtTimeIST(match.time)}</span>}
@@ -157,10 +158,7 @@ export function MatchCard({ match, onBet }) {
           {(isLive || isFinished) && match.score ? (
             <div className="match-card__score">{match.score[0]}–{match.score[1]}</div>
           ) : (
-            <>
-              <div className="match-card__vs-time">{fmtTimeIST(match.time)}</div>
-              <div style={{ fontSize: 10 }}>{match.venue?.split(',')[1]?.trim()}</div>
-            </>
+            <div className="match-card__vs-time">{fmtTimeIST(match.time)}</div>
           )}
         </div>
 
