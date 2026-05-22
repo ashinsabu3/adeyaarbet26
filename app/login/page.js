@@ -2,6 +2,8 @@
 
 import { Suspense, useState } from 'react';
 import supabaseBrowser from '@/lib/supabase-browser';
+import { FRIENDS } from '@/lib/data';
+import { STARTING_BALANCE } from '@/lib/currency';
 
 function LoginContent() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'forgot'
@@ -242,6 +244,41 @@ function LoginContent() {
             ? 'Username auto-derived from your name. Changeable later.'
             : 'Same email works for both Google and password login.'}
         </p>
+
+        {/* Quick login for local dev / demo — only in development */}
+        {process.env.NODE_ENV !== 'production' && <div style={{ marginTop: 24, borderTop: '1px solid #1a4a3a', paddingTop: 20 }}>
+          <p style={{ color: '#5a7a6a', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
+            Quick login (demo)
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {FRIENDS.map(f => (
+              <button
+                key={f.id}
+                onClick={() => {
+                  localStorage.setItem('adeyaar_user', JSON.stringify({
+                    id: f.id,
+                    username: f.id,
+                    display_name: f.name,
+                    balance: STARTING_BALANCE,
+                  }));
+                  window.location.href = '/';
+                }}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  borderRadius: 8,
+                  border: '1px solid #1a4a3a',
+                  background: '#0a2e22',
+                  color: '#f5f5f5',
+                  cursor: 'pointer',
+                }}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+        </div>}
       </div>
     </div>
   );

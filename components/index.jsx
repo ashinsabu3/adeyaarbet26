@@ -73,19 +73,17 @@ export function LiveDot({ minute }) {
 }
 
 // ── App Header ───────────────────────────────────────────────
-export function AppHeader({ balance, onTap }) {
+export function AppHeader({ balance, onTap, user }) {
   return (
     <div className="app-header">
       <div className="app-header__brand">
         <div className="brand-mark">A</div>
         <div className="brand-name">AdeYaar <em>26</em></div>
       </div>
-      {/* balance pill hidden until funds/balance feature is ready
       <button className="balance-pill" onClick={onTap}>
-        <div className="balance-pill__icon">₹</div>
-        <span className="balance-pill__amt">{fmtCompact(balance)}</span>
+        <div className="balance-pill__icon">{user?.display_name?.[0] || '₹'}</div>
+        <span className="balance-pill__amt">{fmtMoney(balance)}</span>
       </button>
-      */}
     </div>
   );
 }
