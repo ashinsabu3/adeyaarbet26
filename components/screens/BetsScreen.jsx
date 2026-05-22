@@ -1,19 +1,28 @@
 'use client';
 
-import { useState } from 'react';
-import { BETS, ME_ID, fmtMoney } from '@/lib/data';
+import { useState, useMemo } from 'react';
+import { fmtMoney } from '@/lib/currency';
 import { BetCard } from '@/components';
 
-export default function BetsScreen() {
-  const [tab, setTab] = useState('open');
-  const mine = BETS.filter(b => b.user === ME_ID);
-  const filtered = tab === 'all' ? mine : mine.filter(b => b.status === tab);
+export default function BetsScreen({ bets = [] }) {
+  const [tab, setTab] = useState('pending');
 
-  const totalOpen = mine.filter(b => b.status === 'open').reduce((s, b) => s + b.amount, 0);
-  const totalWon  = mine.filter(b => b.status === 'won').reduce((s, b) => s + (b.payout - b.amount), 0);
-  const settled   = mine.filter(b => b.status === 'won' || b.status === 'lost');
-  const winRate   = settled.length
-    ? Math.round(100 * mine.filter(b => b.status === 'won').length / settled.length)
+  const filtered = useMemo(() => {
+    if (tab === 'all') return bets;
+    return bets.filter(b => b.status === tab);
+  }, [bets, tab]);
+
+  const totalOpen = useMemo(
+    () => bets.filter(b => b.status === 'pending').reduce((s, b) => s + b.amount, 0),
+    [bets]
+  );
+  const totalWon = useMemo(
+    () => bets.filter(b => b.status === 'won').reduce((s, b) => s + ((b.payout || 0) - b.amount), 0),
+    [bets]
+  );
+  const settled = bets.filter(b => b.status === 'won' || b.status === 'lost');
+  const winRate = settled.length
+    ? Math.round(100 * bets.filter(b => b.status === 'won').length / settled.length)
     : 0;
 
   return (
@@ -41,7 +50,7 @@ export default function BetsScreen() {
 
       <div className="chip-row" style={{ marginBottom: 12 }}>
         {[
-          { id: 'open', label: `Open · ${mine.filter(b => b.status === 'open').length}` },
+          { id: 'pending', label: `Open · ${bets.filter(b => b.status === 'pending').length}` },
           { id: 'won',  label: 'Won' },
           { id: 'lost', label: 'Lost' },
           { id: 'all',  label: 'All' },
@@ -59,7 +68,7 @@ export default function BetsScreen() {
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {filtered.length === 0 && (
           <div className="card" style={{ textAlign: 'center', padding: 28, color: 'var(--ink-3)' }}>
-            No {tab} bets yet
+            {bets.length === 0 ? 'Place your first bet!' : `No ${tab} bets yet`}
           </div>
         )}
         {filtered.map(b => <BetCard key={b.id} bet={b} />)}

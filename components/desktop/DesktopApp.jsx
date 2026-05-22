@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  FRIENDS, BETS, ACTIVITY, GROUPS, BRACKET, MATCHES,
+  FRIENDS, GROUPS, BRACKET, MATCHES,
   ME_ID, getFriend, getTeam, getMatch,
-  fmtMoney, fmtCompact, fmtDay, fmtDate, fmtTimeIST,
+  fmtCompact, fmtDay, fmtDate, fmtTimeIST,
 } from '@/lib/data';
+import { fmtMoney, STARTING_BALANCE } from '@/lib/currency';
+import { getMyBets, getBets, getFriendBalances } from '@/lib/bet-store';
+import { getActivity } from '@/lib/mock-activity';
 import { Flag, LiveDot } from '@/components';
 import SearchOverlay from '@/components/SearchOverlay';
 
@@ -24,13 +27,12 @@ const DIcon = {
 // ── Desktop Shell ─────────────────────────────────────────────
 function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, user, onSelectMatch, onSelectUser }) {
   const me = user || getFriend(ME_ID);
-  const myOpen = BETS.filter(b => b.user === ME_ID && b.status === 'open').length;
+  const myOpen = getMyBets().filter(b => b.status === 'pending').length;
   const [searchActive, setSearchActive] = useState(false);
   const searchBarRef = useRef(null);
 
   const handleSearchClose = useCallback(() => setSearchActive(false), []);
 
-  // Cmd+K shortcut
   useEffect(() => {
     const handleKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -42,7 +44,6 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
-  // Click outside to close
   useEffect(() => {
     if (!searchActive) return;
     const handleClick = (e) => {
@@ -207,12 +208,16 @@ function DHomeScreen({ matches, balance, onBet, onNav }) {
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 6);
   const featured = live[0] || upcoming[0];
 
-  const myOpenBets = BETS.filter(b => b.user === ME_ID && b.status === 'open');
+  const myBets = getMyBets();
+  const myOpenBets = myBets.filter(b => b.status === 'pending');
   const totalStake = myOpenBets.reduce((s, b) => s + b.amount, 0);
-  const myWon = BETS.filter(b => b.user === ME_ID && b.status === 'won')
-    .reduce((s, b) => s + (b.payout - b.amount), 0);
+  const myWon = myBets.filter(b => b.status === 'won')
+    .reduce((s, b) => s + ((b.payout || 0) - b.amount), 0);
 
-  const sorted = [...FRIENDS].sort((a, b) => b.balance - a.balance).slice(0, 5);
+  const balances = getFriendBalances('alltime');
+  const sorted = [...FRIENDS]
+    .map(f => ({ ...f, balance: f.id === ME_ID ? balance : (balances[f.id] ?? STARTING_BALANCE) }))
+    .sort((a, b) => b.balance - a.balance).slice(0, 5);
 
   if (!featured) return <div className="eyebrow" style={{ padding: 24 }}>Loading…</div>;
 
@@ -349,18 +354,15 @@ function DHomeScreen({ matches, balance, onBet, onNav }) {
               <span className="more mono" style={{ color: 'var(--gold)' }}>● live</span>
             </div>
             <div className="desk-feed">
-              {ACTIVITY.map(a => {
-                const friend = getFriend(a.user);
-                return (
-                  <div key={a.id} className="desk-feed__item">
-                    <div className="desk-feed__avatar">{friend?.name[0]}</div>
-                    <div className="desk-feed__text">
-                      <b>{friend?.name}</b> {a.text}
-                    </div>
-                    <span className="desk-feed__when">{a.when}</span>
+              {getActivity(getBets()).map(a => (
+                <div key={a.id} className="desk-feed__item">
+                  <div className="desk-feed__avatar">{a.username[0]}</div>
+                  <div className="desk-feed__text">
+                    <b>{a.username}</b> {a.text}
                   </div>
-                );
-              })}
+                  <span className="desk-feed__when">{a.createdAt ? new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -560,7 +562,10 @@ function DBracketMatch({ home, away, tbd }) {
 // ── Desktop Leaderboard ───────────────────────────────────────
 function DLeaderboardScreen() {
   const [period, setPeriod] = useState('alltime');
-  const sorted = [...FRIENDS].sort((a, b) => b.balance - a.balance);
+  const balances = getFriendBalances(period);
+  const sorted = [...FRIENDS]
+    .map(f => ({ ...f, balance: balances[f.id] ?? STARTING_BALANCE }))
+    .sort((a, b) => b.balance - a.balance);
   const top3 = sorted.slice(0, 3);
 
   return (
@@ -612,9 +617,7 @@ function DLeaderboardScreen() {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
           {sorted.map((f, i) => {
             const IS_ME = f.id === ME_ID;
-            const delta = (i % 3 === 0) ? +Math.round(f.balance * 0.08) :
-                          (i % 3 === 1) ? -Math.round(f.balance * 0.04) :
-                                          +Math.round(f.balance * 0.02);
+            const delta = f.balance - STARTING_BALANCE;
             return (
               <div key={f.id} className={'lb-row ' + (IS_ME ? 'me' : '')} style={{ padding: '13px 18px' }}>
                 <span className="lb-rank">{i + 1}</span>
@@ -644,12 +647,12 @@ function DLeaderboardScreen() {
 
 // ── Desktop My Bets ───────────────────────────────────────────
 function DBetsScreen() {
-  const [tab, setTab] = useState('open');
-  const mine = BETS.filter(b => b.user === ME_ID);
+  const [tab, setTab] = useState('pending');
+  const mine = getMyBets();
   const filtered = tab === 'all' ? mine : mine.filter(b => b.status === tab);
 
-  const totalOpen = mine.filter(b => b.status === 'open').reduce((s, b) => s + b.amount, 0);
-  const totalWon  = mine.filter(b => b.status === 'won').reduce((s, b) => s + (b.payout - b.amount), 0);
+  const totalOpen = mine.filter(b => b.status === 'pending').reduce((s, b) => s + b.amount, 0);
+  const totalWon  = mine.filter(b => b.status === 'won').reduce((s, b) => s + ((b.payout || 0) - b.amount), 0);
   const winRate   = (() => {
     const settled = mine.filter(b => b.status === 'won' || b.status === 'lost');
     if (!settled.length) return 0;
@@ -662,7 +665,7 @@ function DBetsScreen() {
         <div className="desk-stat gold">
           <div className="desk-stat__label">Open stake</div>
           <div className="desk-stat__val">{fmtMoney(totalOpen)}</div>
-          <div className="desk-stat__sub">{mine.filter(b => b.status === 'open').length} live bets</div>
+          <div className="desk-stat__sub">{mine.filter(b => b.status === 'pending').length} live bets</div>
         </div>
         <div className="desk-stat gold">
           <div className="desk-stat__label">Lifetime won</div>
@@ -678,7 +681,7 @@ function DBetsScreen() {
 
       <div className="desk-chiprow">
         {[
-          { id: 'open', label: 'Open · ' + mine.filter(b => b.status === 'open').length },
+          { id: 'pending', label: 'Open · ' + mine.filter(b => b.status === 'pending').length },
           { id: 'won',  label: 'Won · '  + mine.filter(b => b.status === 'won').length  },
           { id: 'lost', label: 'Lost · ' + mine.filter(b => b.status === 'lost').length },
           { id: 'all',  label: 'All bets' },
@@ -720,8 +723,7 @@ function DBetsScreen() {
           const h = getTeam(m.home);
           const a = getTeam(m.away);
           const pickName = b.pick === 'home' ? h.name : b.pick === 'away' ? a.name : 'Draw';
-          const possible = Math.round(b.amount * b.oddsAt);
-          const ret = b.status === 'won' ? b.payout : b.status === 'lost' ? 0 : possible;
+          const ret = b.status === 'won' ? (b.payout || 0) : b.status === 'lost' ? 0 : null;
           return (
             <div key={b.id} className="desk-bet">
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)' }}>
@@ -738,11 +740,11 @@ function DBetsScreen() {
               </div>
               <div className="desk-bet__pick">
                 {pickName}
-                <span className="odds">@ {b.oddsAt.toFixed(2)}</span>
+                <span className="odds">pool</span>
               </div>
               <div className="desk-bet__num">{fmtMoney(b.amount)}</div>
               <div className={'desk-bet__num ' + (b.status === 'won' ? 'win' : b.status === 'lost' ? 'loss' : 'gold')}>
-                {b.status === 'lost' ? '—' : fmtMoney(ret)}
+                {b.status === 'lost' ? '—' : ret != null ? fmtMoney(ret) : 'Pending'}
               </div>
               <div className="desk-bet__status">
                 <span className={'bet-card__status ' + b.status}>{b.status}</span>

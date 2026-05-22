@@ -1,6 +1,7 @@
 'use client';
 
-import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, fmtMoney, getMatch, fmtTimeIST } from '@/lib/data';
+import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, getMatch, fmtTimeIST } from '@/lib/data';
+import { fmtMoney, CURRENCY_SYMBOL } from '@/lib/currency';
 import { useState, useEffect } from 'react';
 
 // ── Icons ────────────────────────────────────────────────────
@@ -249,7 +250,7 @@ export function HeroMatch({ match, onBet }) {
 }
 
 // ── Place bet sheet ──────────────────────────────────────────
-export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
+export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolInfo }) {
   const presets = [100, 250, 500, 1000];
   const [amount, setAmount] = useState(250);
   const [side, setSide] = useState(pick || 'home');
@@ -258,6 +259,11 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
   const away = getTeam(match.away);
   const sideName = side === 'home' ? home.name : side === 'away' ? away.name : 'Draw';
   const overBalance = amount > balance;
+
+  const pool = poolInfo || { total: 0, bettorCount: 0, bySide: { home: 0, away: 0, draw: 0 } };
+  const totalPool = pool.total + amount;
+  const sideTotal = (pool.bySide[side] || 0) + amount;
+  const potentialPayout = sideTotal > 0 ? Math.round((amount / sideTotal) * totalPool) : 0;
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -274,10 +280,17 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
           </button>
         </div>
 
+        {/* Pool info */}
+        {pool.bettorCount > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 12, textAlign: 'center' }}>
+            {pool.bettorCount} friend{pool.bettorCount !== 1 ? 's' : ''} bet on this match · Pool: {fmtMoney(pool.total)}
+          </div>
+        )}
+
         {/* Match preview */}
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="row between" style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>
-            <span>Round of 32 · {fmtDay(match.date)} {fmtTimeIST(match.time)}</span>
+            <span>{match.group ? `Group ${match.group}` : 'Knockout'} · {fmtDay(match.date)} {fmtTimeIST(match.time)}</span>
             <span className="mono">{match.id}</span>
           </div>
           <div className="row between center" style={{ gap: 10 }}>
@@ -354,9 +367,13 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
             <span className="muted" style={{ fontSize: 12 }}>Pick</span>
             <span style={{ fontWeight: 600, fontSize: 13 }}>{sideName}</span>
           </div>
-          <div className="row between">
+          <div className="row between" style={{ marginBottom: 6 }}>
             <span className="muted" style={{ fontSize: 12 }}>Stake</span>
             <span className="mono" style={{ fontWeight: 700 }}>{fmtMoney(amount)}</span>
+          </div>
+          <div className="row between">
+            <span className="muted" style={{ fontSize: 12 }}>Potential payout</span>
+            <span className="mono" style={{ fontWeight: 700, color: 'var(--win)' }}>{fmtMoney(potentialPayout)}</span>
           </div>
         </div>
 
@@ -393,7 +410,6 @@ export function BetCard({ bet }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const pickedTeam = bet.pick === 'home' ? home : bet.pick === 'away' ? away : null;
-  const possibleWin = Math.round(bet.amount * bet.oddsAt);
   const isLive = match.status === 'live';
 
   return (
@@ -421,7 +437,7 @@ export function BetCard({ bet }) {
         <span style={{ fontWeight: 600, fontSize: 13 }}>
           {pickedTeam ? pickedTeam.name : 'Draw'}
         </span>
-        <span className="mono dim" style={{ fontSize: 12 }}>@ {bet.oddsAt.toFixed(2)}</span>
+        <span className="mono dim" style={{ fontSize: 12 }}>parimutuel</span>
       </div>
 
       <div className="bet-card__amounts">
@@ -430,18 +446,11 @@ export function BetCard({ bet }) {
           <span>{fmtMoney(bet.amount)}</span>
         </div>
         <div>
-          <span>{bet.status === 'won' ? 'Payout' : bet.status === 'lost' ? 'Lost' : 'To win'}</span>
+          <span>{bet.status === 'won' ? 'Payout' : bet.status === 'lost' ? 'Lost' : 'Status'}</span>
           <span className={bet.status === 'won' ? 'win' : bet.status === 'lost' ? 'loss' : 'gold'}>
-            {bet.status === 'lost' ? '−' : ''}
-            {fmtMoney(bet.status === 'won' ? bet.payout : possibleWin)}
-          </span>
-        </div>
-        <div>
-          <span>Profit</span>
-          <span className={bet.status === 'won' ? 'win' : bet.status === 'lost' ? 'loss' : ''}>
-            {bet.status === 'lost' ? '−' + fmtMoney(bet.amount) :
-             bet.status === 'won' ? '+' + fmtMoney(bet.payout - bet.amount) :
-             '+' + fmtMoney(possibleWin - bet.amount)}
+            {bet.status === 'won' ? fmtMoney(bet.payout) :
+             bet.status === 'lost' ? '−' + fmtMoney(bet.amount) :
+             'Pending'}
           </span>
         </div>
       </div>
