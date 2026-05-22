@@ -8,6 +8,7 @@ import MatchesScreen from '@/components/screens/MatchesScreen';
 import BracketScreen from '@/components/screens/BracketScreen';
 import LeaderboardScreen from '@/components/screens/LeaderboardScreen';
 import BetsScreen from '@/components/screens/BetsScreen';
+import DesktopApp from '@/components/desktop/DesktopApp';
 
 function getFifaStatus(fifa) {
   if (fifa.HomeTeamScore != null && fifa.AwayTeamScore != null) return 'finished';
@@ -37,17 +38,26 @@ function mergeWithFifa(staticMatch, fifaResults) {
 
 export default function AdeYaarApp() {
   const theme = 'midnight';
-  const [tab, setTab]     = useState('home');
-  const [betSheet, setBetSheet] = useState(null); // { match, pick }
+  const [tab, setTab]           = useState('home');
+  const [betSheet, setBetSheet] = useState(null);
   const [toast, setToast]       = useState(null);
   const [balance, setBalance]   = useState(getFriend(ME_ID).balance);
   const [fifaData, setFifaData] = useState(null);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     fetch('/api/fifa/matches')
       .then(r => r.json())
       .then(setFifaData)
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    setIsDesktop(mq.matches);
+    const handler = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
@@ -64,23 +74,30 @@ export default function AdeYaarApp() {
     setToast(`Bet placed · ₹${amount.toLocaleString('en-IN')} on ${team ? team.name : 'Draw'}`);
   };
 
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopApp
+          tab={tab} setTab={setTab}
+          balance={balance} openBet={openBet}
+          matches={matches}
+        />
+        {betSheet && (
+          <PlaceBetSheet
+            match={betSheet.match}
+            pick={betSheet.pick}
+            balance={balance}
+            onClose={closeBet}
+            onConfirm={confirmBet}
+          />
+        )}
+        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      </>
+    );
+  }
+
   return (
     <div className="stage">
-      {/* Desktop info panel */}
-      <div className="info-panel">
-        <div>
-          <h1>AdeYaar 26</h1>
-          <div className="tag">Friend-group betting · FIFA 2026</div>
-          <p>48 teams, 12 groups, 104 matches across USA, Canada and Mexico.</p>
-        </div>
-        <ul>
-          <li><span>Stack</span><b>Next.js · App Router</b></li>
-          <li><span>Hosting</span><b>Vercel</b></li>
-          <li><span>Teams</span><b>48 · real 2026 draw</b></li>
-          <li><span>Screens</span><b>Home · Matches · Bracket · Leaders · Bets</b></li>
-        </ul>
-      </div>
-
       {/* Phone frame */}
       <div className="phone-frame">
         <div className="app" data-theme={theme}>

@@ -2,6 +2,7 @@
 
 import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, fmtMoney, getMatch } from '@/lib/data';
 import { useState, useEffect } from 'react';
+import supabase from '@/lib/supabase';
 
 // ── Icons ────────────────────────────────────────────────────
 export const Icon = {
@@ -246,123 +247,217 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
   const presets = [100, 250, 500, 1000];
   const [amount, setAmount] = useState(250);
   const [side, setSide] = useState(pick || 'home');
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const home = getTeam(match.home);
   const away = getTeam(match.away);
-  // const odds = match.odds?.[side]; // odds coming soon
   const sideName = side === 'home' ? home.name : side === 'away' ? away.name : 'Draw';
   const overBalance = amount > balance;
+
+  const verifyAndBet = async () => {
+    if (!loginUsername || !loginPassword) return;
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      const { data, error: dbError } = await supabase
+        .from('users')
+        .select('password')
+        .eq('username', loginUsername.trim().toLowerCase())
+        .single();
+      if (dbError || !data) {
+        setLoginError('Wrong username or password');
+      } else if (data.password !== loginPassword) {
+        setLoginError('Wrong username or password');
+      } else {
+        onConfirm({ matchId: match.id, pick: side, amount });
+      }
+    } catch {
+      setLoginError("Couldn't connect, try again");
+    }
+    setLoginLoading(false);
+  };
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>
         <div className="sheet-handle" />
 
-        <div className="row between center" style={{ marginBottom: 14 }}>
-          <div className="eyebrow">Place your bet</div>
-          <button
-            onClick={onClose}
-            style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}
-          >
-            {Icon.close}
-          </button>
-        </div>
-
-        {/* Match preview */}
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="row between" style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>
-            <span>Round of 32 · {fmtDay(match.date)} {match.time}</span>
-            <span className="mono">{match.id}</span>
-          </div>
-          <div className="row between center" style={{ gap: 10 }}>
-            <div className="row center" style={{ gap: 8 }}>
-              <Flag code={match.home} />
-              <span style={{ fontWeight: 600 }}>{home.name}</span>
+        {showLogin ? (
+          <>
+            <div className="row between center" style={{ marginBottom: 14 }}>
+              <div className="eyebrow">Confirm your identity</div>
+              <button
+                onClick={() => setShowLogin(false)}
+                style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}
+              >
+                {Icon.close}
+              </button>
             </div>
-            <span className="mono" style={{ color: 'var(--ink-3)' }}>vs</span>
-            <div className="row center" style={{ gap: 8 }}>
-              <span style={{ fontWeight: 600 }}>{away.name}</span>
-              <Flag code={match.away} />
-            </div>
-          </div>
-        </div>
 
-        {/* Side picker */}
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Your pick</div>
-        <div className="match-card__odds" style={{ marginBottom: 18 }}>
-          {[
-            { k: 'home', l: home.name },
-            { k: 'draw', l: 'Draw' },
-            { k: 'away', l: away.name },
-          ].map(o => (
+            <div style={{ color: 'var(--ink-3)', fontSize: 12, marginBottom: 18, textAlign: 'center' }}>
+              {sideName} · {fmtMoney(amount)}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 18 }}>
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 6 }}>Username</div>
+                <input
+                  type="text"
+                  value={loginUsername}
+                  onChange={e => { setLoginUsername(e.target.value); setLoginError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && verifyAndBet()}
+                  placeholder="e.g. rahul"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: 'var(--radius)',
+                    background: 'var(--surface-2)', border: '1px solid var(--line)',
+                    color: 'var(--ink)', fontSize: 15, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 6 }}>Password</div>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={e => { setLoginPassword(e.target.value); setLoginError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && verifyAndBet()}
+                  placeholder="••••••••"
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: 'var(--radius)',
+                    background: 'var(--surface-2)', border: '1px solid var(--line)',
+                    color: 'var(--ink)', fontSize: 15, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
+            {loginError && (
+              <div style={{ color: 'var(--loss)', fontSize: 13, marginBottom: 14, textAlign: 'center' }}>
+                {loginError}
+              </div>
+            )}
+
             <button
-              key={o.k}
-              className={'odds-btn ' + (side === o.k ? 'fav' : '')}
-              style={side === o.k ? { borderColor: 'var(--gold)', background: 'var(--gold-soft)' } : {}}
-              onClick={() => setSide(o.k)}
+              className="btn primary block lg"
+              disabled={!loginUsername || !loginPassword || loginLoading}
+              onClick={verifyAndBet}
             >
-              <span className="odds-btn__label">
-                {o.l.length > 8 ? (o.k === 'home' ? home.code : o.k === 'away' ? away.code : 'X') : o.l}
-              </span>
-              {/* odds coming soon */}
+              {loginLoading ? 'Verifying…' : 'Confirm bet'}
             </button>
-          ))}
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="row between center" style={{ marginBottom: 14 }}>
+              <div className="eyebrow">Place your bet</div>
+              <button
+                onClick={onClose}
+                style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}
+              >
+                {Icon.close}
+              </button>
+            </div>
 
-        {/* Amount */}
-        <div className="row between" style={{ marginBottom: 10 }}>
-          <div className="eyebrow">Amount</div>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>Bal {fmtMoney(balance)}</div>
-        </div>
+            {/* Match preview */}
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="row between" style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>
+                <span>Round of 32 · {fmtDay(match.date)} {match.time}</span>
+                <span className="mono">{match.id}</span>
+              </div>
+              <div className="row between center" style={{ gap: 10 }}>
+                <div className="row center" style={{ gap: 8 }}>
+                  <Flag code={match.home} />
+                  <span style={{ fontWeight: 600 }}>{home.name}</span>
+                </div>
+                <span className="mono" style={{ color: 'var(--ink-3)' }}>vs</span>
+                <div className="row center" style={{ gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{away.name}</span>
+                  <Flag code={match.away} />
+                </div>
+              </div>
+            </div>
 
-        <div style={{
-          textAlign: 'center', padding: '14px 0',
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 36,
-          color: overBalance ? 'var(--loss)' : 'var(--ink)',
-        }}>
-          ₹{amount.toLocaleString('en-IN')}
-        </div>
+            {/* Side picker */}
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Your pick</div>
+            <div className="match-card__odds" style={{ marginBottom: 18 }}>
+              {[
+                { k: 'home', l: home.name },
+                { k: 'draw', l: 'Draw' },
+                { k: 'away', l: away.name },
+              ].map(o => (
+                <button
+                  key={o.k}
+                  className={'odds-btn ' + (side === o.k ? 'fav' : '')}
+                  style={side === o.k ? { borderColor: 'var(--gold)', background: 'var(--gold-soft)' } : {}}
+                  onClick={() => setSide(o.k)}
+                >
+                  <span className="odds-btn__label">
+                    {o.l.length > 8 ? (o.k === 'home' ? home.code : o.k === 'away' ? away.code : 'X') : o.l}
+                  </span>
+                </button>
+              ))}
+            </div>
 
-        <input
-          type="range" className="slider"
-          min={50} max={Math.max(5000, balance)} step={50}
-          value={amount}
-          onChange={e => setAmount(Number(e.target.value))}
-          style={{ marginBottom: 14 }}
-        />
+            {/* Amount */}
+            <div className="row between" style={{ marginBottom: 10 }}>
+              <div className="eyebrow">Amount</div>
+              <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>Bal {fmtMoney(balance)}</div>
+            </div>
 
-        <div className="amount-presets" style={{ marginBottom: 18 }}>
-          {presets.map(p => (
-            <button key={p} className={amount === p ? 'active' : ''} onClick={() => setAmount(p)}>
-              ₹{p}
+            <div style={{
+              textAlign: 'center', padding: '14px 0',
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 36,
+              color: overBalance ? 'var(--loss)' : 'var(--ink)',
+            }}>
+              ₹{amount.toLocaleString('en-IN')}
+            </div>
+
+            <input
+              type="range" className="slider"
+              min={50} max={Math.max(5000, balance)} step={50}
+              value={amount}
+              onChange={e => setAmount(Number(e.target.value))}
+              style={{ marginBottom: 14 }}
+            />
+
+            <div className="amount-presets" style={{ marginBottom: 18 }}>
+              {presets.map(p => (
+                <button key={p} className={amount === p ? 'active' : ''} onClick={() => setAmount(p)}>
+                  ₹{p}
+                </button>
+              ))}
+            </div>
+
+            {/* Summary */}
+            <div style={{
+              padding: '14px 16px', borderRadius: 'var(--radius)',
+              background: 'var(--surface-2)', marginBottom: 16,
+              border: '1px solid var(--line)',
+            }}>
+              <div className="row between" style={{ marginBottom: 6 }}>
+                <span className="muted" style={{ fontSize: 12 }}>Pick</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{sideName}</span>
+              </div>
+              <div className="row between">
+                <span className="muted" style={{ fontSize: 12 }}>Stake</span>
+                <span className="mono" style={{ fontWeight: 700 }}>{fmtMoney(amount)}</span>
+              </div>
+            </div>
+
+            <button
+              className="btn primary block lg"
+              disabled={overBalance}
+              onClick={() => setShowLogin(true)}
+            >
+              {overBalance ? 'Insufficient balance' : `Place ₹${amount.toLocaleString('en-IN')} bet`}
             </button>
-          ))}
-        </div>
-
-        {/* Summary */}
-        <div style={{
-          padding: '14px 16px', borderRadius: 'var(--radius)',
-          background: 'var(--surface-2)', marginBottom: 16,
-          border: '1px solid var(--line)',
-        }}>
-          <div className="row between" style={{ marginBottom: 6 }}>
-            <span className="muted" style={{ fontSize: 12 }}>Pick</span>
-            <span style={{ fontWeight: 600, fontSize: 13 }}>{sideName}</span>
-          </div>
-          <div className="row between">
-            <span className="muted" style={{ fontSize: 12 }}>Stake</span>
-            <span className="mono" style={{ fontWeight: 700 }}>{fmtMoney(amount)}</span>
-          </div>
-          {/* Possible win — coming once odds are wired */}
-        </div>
-
-        <button
-          className="btn primary block lg"
-          disabled={overBalance}
-          onClick={() => onConfirm({ matchId: match.id, pick: side, amount })}
-        >
-          {overBalance ? 'Insufficient balance' : `Place ₹${amount.toLocaleString('en-IN')} bet`}
-        </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -440,6 +535,105 @@ export function BetCard({ bet }) {
              '+' + fmtMoney(possibleWin - bet.amount)}
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Login modal ──────────────────────────────────────────────
+export function LoginModal({ onSuccess, onCancel }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+
+  const verify = async () => {
+    if (!username || !password) return;
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: dbError } = await supabase
+        .from('users')
+        .select('password')
+        .eq('username', username.trim().toLowerCase())
+        .single();
+
+      if (dbError || !data) {
+        setError('Wrong username or password');
+      } else if (data.password !== password) {
+        setError('Wrong username or password');
+      } else {
+        onSuccess();
+      }
+    } catch {
+      setError("Couldn't connect, try again");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="sheet-backdrop" style={{ zIndex: 200 }} onClick={onCancel}>
+      <div className="sheet" onClick={e => e.stopPropagation()}>
+        <div className="sheet-handle" />
+
+        <div className="row between center" style={{ marginBottom: 14 }}>
+          <div className="eyebrow">Confirm your identity</div>
+          <button
+            onClick={onCancel}
+            style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}
+          >
+            {Icon.close}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 18 }}>
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>Username</div>
+            <input
+              type="text"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(''); }}
+              onKeyDown={e => e.key === 'Enter' && verify()}
+              placeholder="e.g. rahul"
+              autoCapitalize="none"
+              autoCorrect="off"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 'var(--radius)',
+                background: 'var(--surface-2)', border: '1px solid var(--line)',
+                color: 'var(--ink)', fontSize: 15, outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>Password</div>
+            <input
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(''); }}
+              onKeyDown={e => e.key === 'Enter' && verify()}
+              placeholder="••••••••"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 'var(--radius)',
+                background: 'var(--surface-2)', border: '1px solid var(--line)',
+                color: 'var(--ink)', fontSize: 15, outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ color: 'var(--loss)', fontSize: 13, marginBottom: 14, textAlign: 'center' }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          className="btn primary block lg"
+          disabled={!username || !password || loading}
+          onClick={verify}
+        >
+          {loading ? 'Verifying…' : 'Confirm bet'}
+        </button>
       </div>
     </div>
   );
