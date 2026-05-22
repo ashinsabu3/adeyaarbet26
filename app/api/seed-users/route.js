@@ -13,6 +13,13 @@ const FRIENDS = [
 ];
 
 export async function GET() {
+  if (!supabase) {
+    return NextResponse.json({
+      users: FRIENDS.map(f => ({ ...f, balance: 5000 })),
+      note: 'Supabase not configured. Showing static friends list.',
+    });
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('id, username, display_name, balance');

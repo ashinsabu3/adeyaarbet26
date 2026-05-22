@@ -6,6 +6,10 @@ export async function GET(request) {
   const userId = searchParams.get('user_id');
   const matchId = searchParams.get('match_id');
 
+  if (!supabase) {
+    return NextResponse.json([]);
+  }
+
   let query = supabase.from('bets').select('*').order('created_at', { ascending: false });
 
   if (userId) query = query.eq('user_id', userId);
@@ -17,6 +21,10 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  if (!supabase) {
+    return NextResponse.json({ error: 'Betting requires database. Set NEXT_PUBLIC_SUPABASE_URL.' }, { status: 503 });
+  }
+
   try {
     const { userId, matchId, pick, amount } = await request.json();
 

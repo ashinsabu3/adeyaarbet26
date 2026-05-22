@@ -136,13 +136,19 @@ export default function AdeYaarApp() {
         body: JSON.stringify({ userId: user.id, matchId, pick, amount }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to place bet');
 
-      setBalance(data.balance);
-      // Refresh bets list
-      const betsRes = await fetch(`/api/bets?user_id=${user.id}`);
-      const betsData = await betsRes.json();
-      if (Array.isArray(betsData)) setBets(betsData);
+      if (res.status === 503) {
+        // No DB — update state locally
+        setBalance(b => b - amount);
+        setBets(prev => [{ id: Date.now(), match_id: matchId, pick, amount, status: 'pending', created_at: new Date().toISOString() }, ...prev]);
+      } else if (!res.ok) {
+        throw new Error(data.error || 'Failed to place bet');
+      } else {
+        setBalance(data.balance);
+        const betsRes = await fetch(`/api/bets?user_id=${user.id}`);
+        const betsData = await betsRes.json();
+        if (Array.isArray(betsData)) setBets(betsData);
+      }
 
       setBetSheet(null);
       const match = getMatch(matchId);

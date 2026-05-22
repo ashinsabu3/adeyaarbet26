@@ -9,6 +9,10 @@ export async function GET(request) {
     return NextResponse.json({ error: 'match_id is required' }, { status: 400 });
   }
 
+  if (!supabase) {
+    return NextResponse.json({ matchId, total: 0, bettorCount: 0, bySide: { home: 0, away: 0, draw: 0 } });
+  }
+
   const { data: bets, error } = await supabase
     .from('bets')
     .select('user_id, pick, amount')
