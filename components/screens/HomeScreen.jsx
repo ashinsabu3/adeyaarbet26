@@ -1,15 +1,41 @@
 'use client';
 
-import { BETS, ACTIVITY, ME_ID, getFriend, fmtCompact } from '@/lib/data';
+import { useMemo, useState, useEffect } from 'react';
+import { getFriend, fmtCompact } from '@/lib/data';
+import { getBets } from '@/lib/bet-store';
+import { getActivity } from '@/lib/mock-activity';
 import { HeroMatch, MatchCard, SectionHead } from '@/components';
 
-export default function HomeScreen({ matches = [], balance, onBet, onNav }) {
+function relativeTime(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+export default function HomeScreen({ matches = [], balance, bets = [], onBet, onNav }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 3);
   const featured = live[0] || upcoming[0];
-  const myOpenBets = BETS.filter(b => b.user === ME_ID && b.status === 'open').length;
-  const myWonToday = BETS.filter(b => b.user === ME_ID && b.status === 'won')
-    .reduce((s, b) => s + (b.payout - b.amount), 0);
+
+  const myOpenBets = bets.filter(b => b.status === 'pending').length;
+  const myWonToday = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return bets
+      .filter(b => b.status === 'won' && new Date(b.createdAt) >= todayStart)
+      .reduce((s, b) => s + ((b.payout || 0) - b.amount), 0);
+  }, [bets]);
+
+  const [activity, setActivity] = useState([]);
+
+  useEffect(() => {
+    const allBets = getBets();
+    setActivity(getActivity(allBets));
+  }, [bets]);
 
   return (
     <div>
@@ -51,19 +77,23 @@ export default function HomeScreen({ matches = [], balance, onBet, onNav }) {
       {/* Friend activity */}
       <SectionHead title="Friend activity" more="See all" onMore={() => onNav('leaders')} />
       <div className="ticker" style={{ paddingBottom: 8 }}>
-        {ACTIVITY.map(a => {
-          const friend = getFriend(a.user);
-          return (
-            <div key={a.id} className="ticker-item">
-              <div className="ticker-avatar">{friend?.name[0]}</div>
-              <div style={{ flex: 1 }}>
-                <span style={{ fontWeight: 600 }}>{friend?.name}</span>{' '}
-                <span style={{ color: 'var(--ink-2)' }}>{a.text}</span>
-              </div>
-              <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>{a.when}</span>
+        {activity.length === 0 && (
+          <div style={{ padding: '16px', color: 'var(--ink-3)', textAlign: 'center', fontSize: 13 }}>
+            No activity yet
+          </div>
+        )}
+        {activity.map(a => (
+          <div key={a.id} className="ticker-item">
+            <div className="ticker-avatar">{a.username[0]}</div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontWeight: 600 }}>{a.username}</span>{' '}
+              <span style={{ color: 'var(--ink-2)' }}>{a.text}</span>
             </div>
-          );
-        })}
+            <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>
+              {relativeTime(a.createdAt)}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

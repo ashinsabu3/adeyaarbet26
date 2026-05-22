@@ -1,19 +1,31 @@
 'use client';
 
-import { useState } from 'react';
-import { FRIENDS, ME_ID, fmtMoney, fmtCompact } from '@/lib/data';
+import { useState, useMemo } from 'react';
+import { FRIENDS, ME_ID, fmtCompact } from '@/lib/data';
+import { fmtMoney, STARTING_BALANCE } from '@/lib/currency';
+import { getFriendBalances } from '@/lib/bet-store';
 
 export default function LeaderboardScreen({ balance }) {
   const [period, setPeriod] = useState('alltime');
-  const sorted = [...FRIENDS].sort((a, b) => b.balance - a.balance);
-  const top3 = sorted.slice(0, 3);
+
+  const rankings = useMemo(() => {
+    const balances = getFriendBalances(period);
+    return FRIENDS
+      .map(f => ({
+        ...f,
+        balance: f.id === ME_ID ? balance : (balances[f.id] ?? STARTING_BALANCE),
+      }))
+      .sort((a, b) => b.balance - a.balance);
+  }, [period, balance]);
+
+  const top3 = rankings.slice(0, 3);
 
   // podium order: 2nd, 1st, 3rd
-  const podium = [
+  const podium = top3.length >= 3 ? [
     { ...top3[1], rank: 2 },
     { ...top3[0], rank: 1 },
     { ...top3[2], rank: 3 },
-  ];
+  ] : [];
 
   return (
     <div>
@@ -38,24 +50,24 @@ export default function LeaderboardScreen({ balance }) {
       </div>
 
       {/* Podium */}
-      <div className="podium">
-        {podium.map(f => (
-          <div key={f.id} className={'podium-block rank' + f.rank}>
-            <div className="podium-avatar">{f.name[0]}</div>
-            <div className="podium-name">{f.name}</div>
-            <div className="podium-amt">{fmtMoney(f.balance)}</div>
-            <div className="podium-bar">{f.rank}</div>
-          </div>
-        ))}
-      </div>
+      {podium.length > 0 && (
+        <div className="podium">
+          {podium.map(f => (
+            <div key={f.id} className={'podium-block rank' + f.rank}>
+              <div className="podium-avatar">{f.name[0]}</div>
+              <div className="podium-name">{f.name}</div>
+              <div className="podium-amt">{fmtMoney(f.balance)}</div>
+              <div className="podium-bar">{f.rank}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Full list */}
       <div className="card" style={{ padding: 0, margin: '0 16px 24px' }}>
-        {sorted.map((f, i) => {
+        {rankings.map((f, i) => {
           const isMe = f.id === ME_ID;
-          const delta = i % 3 === 0 ? +Math.round(f.balance * 0.08)
-                      : i % 3 === 1 ? -Math.round(f.balance * 0.04)
-                      : +Math.round(f.balance * 0.02);
+          const delta = f.balance - STARTING_BALANCE;
           return (
             <div key={f.id} className={'lb-row ' + (isMe ? 'me' : '')}>
               <span className="lb-rank">{i + 1}</span>
