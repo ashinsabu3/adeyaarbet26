@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { getFriend, fmtCompact } from '@/lib/data';
-import { getBets } from '@/lib/bet-store';
-import { getActivity } from '@/lib/mock-activity';
+import { fmtCompact } from '@/lib/data';
+import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { HeroMatch, MatchCard, SectionHead } from '@/components';
 
 function relativeTime(iso) {
@@ -16,7 +15,7 @@ function relativeTime(iso) {
   return `${Math.floor(hours / 24)}d`;
 }
 
-export default function HomeScreen({ matches = [], balance, bets = [], onBet, onNav }) {
+export default function HomeScreen({ matches = [], balance, bets = [], onBet, onNav, user }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 3);
   const featured = live[0] || upcoming[0];
@@ -26,15 +25,26 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     return bets
-      .filter(b => b.status === 'won' && new Date(b.createdAt) >= todayStart)
+      .filter(b => b.status === 'won' && new Date(b.created_at) >= todayStart)
       .reduce((s, b) => s + ((b.payout || 0) - b.amount), 0);
   }, [bets]);
 
   const [activity, setActivity] = useState([]);
 
   useEffect(() => {
-    const allBets = getBets();
-    setActivity(getActivity(allBets));
+    fetch('/api/activity?limit=10')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setActivity(data.map(a => ({
+            id: a.id,
+            username: a.profiles?.display_name || a.profiles?.username || 'Unknown',
+            text: formatActivityText(a),
+            createdAt: a.created_at,
+          })));
+        }
+      })
+      .catch(() => {});
   }, [bets]);
 
   return (
@@ -46,7 +56,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
         {[
           { label: 'Open bets', val: myOpenBets, sub: 'placed', tint: null },
           { label: "Today's net", val: '+' + fmtCompact(myWonToday), sub: 'won', tint: 'win' },
-          { label: 'Group rank', val: '#1', sub: 'of 8', tint: 'gold' },
+          { label: 'Group rank', val: '#-', sub: 'of 8', tint: 'gold' },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div className="stat-label">{s.label}</div>
@@ -79,7 +89,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
       <div className="ticker" style={{ paddingBottom: 8 }}>
         {activity.length === 0 && (
           <div style={{ padding: '16px', color: 'var(--ink-3)', textAlign: 'center', fontSize: 13 }}>
-            No activity yet
+            No activity yet — place the first bet!
           </div>
         )}
         {activity.map(a => (
@@ -97,4 +107,14 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
       </div>
     </div>
   );
+}
+
+function formatActivityText(a) {
+  if (a.type === 'bet_placed' && a.payload) {
+    return `bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${a.payload.pick}`;
+  }
+  if (a.type === 'bet_won' && a.payload) {
+    return `won ${CURRENCY_SYMBOL}${a.payload.payout}!`;
+  }
+  return a.type;
 }

@@ -1,36 +1,16 @@
 import { NextResponse } from 'next/server';
-import { FRIENDS, MATCHES, ME_ID, getTeam } from '@/lib/data';
-import { CURRENCY_SYMBOL } from '@/lib/currency';
+import supabase from '@/lib/supabase';
 
-// Generate mock activity data server-side
-function generateMockActivity() {
-  const friends = FRIENDS.filter(f => f.id !== ME_ID);
-  const picks = ['home', 'away', 'draw'];
-  const amounts = [200, 300, 500, 750, 1000];
-  const activity = [];
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const limit = parseInt(searchParams.get('limit') || '20', 10);
 
-  for (let i = 0; i < 8; i++) {
-    const friend = friends[i % friends.length];
-    const match = MATCHES[i % MATCHES.length];
-    const pick = picks[i % 3];
-    const team = pick === 'home' ? getTeam(match.home) :
-                 pick === 'away' ? getTeam(match.away) : null;
-    const amount = amounts[i % amounts.length];
+  const { data, error } = await supabase
+    .from('activity')
+    .select('*, profiles(username, display_name)')
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
-    activity.push({
-      id: `activity-${i}`,
-      userId: friend.id,
-      username: friend.name,
-      type: 'bet_placed',
-      text: `bet ${CURRENCY_SYMBOL}${amount} on ${team ? team.name : 'Draw'}`,
-      createdAt: new Date(Date.now() - (i + 1) * 3600000).toISOString(),
-    });
-  }
-
-  return activity;
-}
-
-export async function GET() {
-  const activity = generateMockActivity();
-  return NextResponse.json(activity);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }

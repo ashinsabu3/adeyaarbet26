@@ -1,44 +1,51 @@
 import { NextResponse } from 'next/server';
-import { MATCHES } from '@/lib/data';
+import supabase from '@/lib/supabase';
 
-// In-memory store for API layer (server-side demo)
-let serverBets = [];
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get('user_id');
+  const matchId = searchParams.get('match_id');
 
-export async function GET() {
-  return NextResponse.json(serverBets);
+  let query = supabase.from('bets').select('*').order('created_at', { ascending: false });
+
+  if (userId) query = query.eq('user_id', userId);
+  if (matchId) query = query.eq('match_id', matchId);
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
 
 export async function POST(request) {
   try {
-    const { matchId, pick, amount } = await request.json();
+    const { userId, matchId, pick, amount } = await request.json();
 
-    // Validate
-    if (!matchId || !pick || !amount) {
-      return NextResponse.json({ error: 'Missing required fields: matchId, pick, amount' }, { status: 400 });
-    }
-    if (!['home', 'away', 'draw'].includes(pick)) {
-      return NextResponse.json({ error: 'Invalid pick. Must be home, away, or draw' }, { status: 400 });
-    }
-    if (amount <= 0) {
-      return NextResponse.json({ error: 'Amount must be positive' }, { status: 400 });
-    }
-    const match = MATCHES.find(m => m.id === matchId);
-    if (!match) {
-      return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+    if (!userId || !matchId || !pick || !amount) {
+      return NextResponse.json({ error: 'Missing required fields: userId, matchId, pick, amount' }, { status: 400 });
     }
 
-    const bet = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-      matchId,
-      pick,
-      amount,
-      oddsAt: null,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
+    const { data, error } = await supabase.rpc('place_bet', {
+      p_user_id: userId,
+      p_match_id: matchId,
+      p_pick: pick,
+      p_amount: amount,
+    });
 
-    serverBets = [...serverBets, bet];
-    return NextResponse.json(bet, { status: 201 });
+    if (error) {
+      const msg = error.message || '';
+      if (msg.includes('Insufficient balance')) {
+        return NextResponse.json({ error: 'Insufficient balance' }, { status: 400 });
+      }
+      if (msg.includes('Invalid pick') || msg.includes('Amount must be positive')) {
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+      if (msg.includes('User not found')) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+
+    return NextResponse.json(data, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }

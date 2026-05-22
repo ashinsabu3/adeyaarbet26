@@ -399,7 +399,7 @@ export function Toast({ message, onDone }) {
 
 // ── Bet card (My Bets screen) ────────────────────────────────
 export function BetCard({ bet }) {
-  const match = getMatch(bet.matchId);
+  const match = getMatch(bet.match_id || bet.matchId);
   if (!match) return null;
   const home = getTeam(match.home);
   const away = getTeam(match.away);

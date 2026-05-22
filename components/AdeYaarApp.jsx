@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MATCHES, getMatch, getTeam, ME_ID } from '@/lib/data';
+import { MATCHES, getMatch, getTeam } from '@/lib/data';
 import { STARTING_BALANCE, fmtMoney } from '@/lib/currency';
-import { initBetStore, placeBet, getBalance, getMyBets, getPoolForMatch } from '@/lib/bet-store';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
@@ -38,6 +37,14 @@ function mergeWithFifa(staticMatch, fifaResults) {
   return { ...staticMatch, venue, fifaId: fifa.IdMatch, status, score, minute };
 }
 
+function getUserFromStorage() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('adeyaar_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export default function AdeYaarApp() {
   const theme = 'midnight';
   const [tab, setTab]           = useState('home');
@@ -47,13 +54,44 @@ export default function AdeYaarApp() {
   const [bets, setBets]         = useState([]);
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [poolInfo, setPoolInfo] = useState(null);
+  const [user, setUser]         = useState(null);
 
-  // Initialize bet store and load state
   useEffect(() => {
-    initBetStore();
-    setBalance(getBalance());
-    setBets(getMyBets());
+    const u = getUserFromStorage();
+    if (!u) {
+      window.location.href = '/login';
+      return;
+    }
+    // Resolve username to UUID profile from DB
+    fetch(`/api/profile?username=${u.username || u.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(profile => {
+        if (profile) {
+          setUser(profile);
+          setBalance(profile.balance);
+        } else {
+          setUser(u);
+        }
+      })
+      .catch(() => setUser(u));
   }, []);
+
+  // Load balance and bets from DB
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/bets?user_id=${user.id}`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setBets(data); })
+      .catch(() => {});
+    fetch(`/api/leaderboard`)
+      .then(r => r.json())
+      .then(data => {
+        const me = data.find(p => p.id === user.id);
+        if (me) setBalance(me.balance);
+      })
+      .catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     fetch('/api/fifa/matches')
@@ -70,21 +108,42 @@ export default function AdeYaarApp() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  // Load pool info when bet sheet opens
+  useEffect(() => {
+    if (!betSheet) { setPoolInfo(null); return; }
+    fetch(`/api/pool?match_id=${betSheet.match.id}`)
+      .then(r => r.json())
+      .then(setPoolInfo)
+      .catch(() => setPoolInfo(null));
+  }, [betSheet]);
+
   const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
   const openBet  = useCallback((match, pick) => setBetSheet({ match, pick }), []);
   const closeBet = useCallback(() => setBetSheet(null), []);
 
-  const confirmBet = useCallback(({ matchId, pick, amount }) => {
+  const confirmBet = useCallback(async ({ matchId, pick, amount }) => {
+    if (!user) return;
     try {
-      // Check live match status (from FIFA merge) before placing bet
       const liveMatch = matches.find(m => m.id === matchId);
       if (liveMatch && liveMatch.status === 'finished') {
         throw new Error('Match already finished');
       }
-      placeBet(matchId, pick, amount);
-      setBalance(getBalance());
-      setBets(getMyBets());
+
+      const res = await fetch('/api/bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, matchId, pick, amount }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to place bet');
+
+      setBalance(data.balance);
+      // Refresh bets list
+      const betsRes = await fetch(`/api/bets?user_id=${user.id}`);
+      const betsData = await betsRes.json();
+      if (Array.isArray(betsData)) setBets(betsData);
+
       setBetSheet(null);
       const match = getMatch(matchId);
       const team = pick === 'home' ? getTeam(match.home) :
@@ -94,9 +153,9 @@ export default function AdeYaarApp() {
       setToast(`Error: ${err.message}`);
       setBetSheet(null);
     }
-  }, [matches]);
+  }, [matches, user]);
 
-  const poolInfo = betSheet ? getPoolForMatch(betSheet.match.id) : null;
+  if (!user) return null;
 
   if (isDesktop) {
     return (
@@ -104,7 +163,7 @@ export default function AdeYaarApp() {
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={balance} openBet={openBet}
-          matches={matches}
+          matches={matches} user={user}
         />
         {betSheet && (
           <PlaceBetSheet
@@ -123,16 +182,15 @@ export default function AdeYaarApp() {
 
   return (
     <div className="stage">
-      {/* Phone frame */}
       <div className="phone-frame">
         <div className="app" data-theme={theme}>
-          <AppHeader balance={balance} onTap={() => setTab('bets')} />
+          <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onNav={setTab} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onNav={setTab} user={user} />}
             {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
-            {tab === 'leaders' && <LeaderboardScreen balance={balance} />}
+            {tab === 'leaders' && <LeaderboardScreen user={user} />}
             {tab === 'bets'    && <BetsScreen bets={bets} />}
           </div>
 

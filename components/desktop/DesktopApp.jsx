@@ -1,14 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  FRIENDS, GROUPS, BRACKET, MATCHES,
-  ME_ID, getFriend, getTeam, getMatch,
+  GROUPS, BRACKET, MATCHES,
+  getTeam, getMatch,
   fmtCompact, fmtDay, fmtDate, fmtTimeIST,
 } from '@/lib/data';
-import { fmtMoney, STARTING_BALANCE } from '@/lib/currency';
-import { getMyBets, getBets, getFriendBalances } from '@/lib/bet-store';
-import { getActivity } from '@/lib/mock-activity';
+import { fmtMoney, STARTING_BALANCE, CURRENCY_SYMBOL } from '@/lib/currency';
 import { Flag, LiveDot } from '@/components';
 
 // ── Desktop icons ─────────────────────────────────────────────
@@ -24,16 +22,15 @@ const DIcon = {
 };
 
 // ── Desktop Shell ─────────────────────────────────────────────
-function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch }) {
-  const me = getFriend(ME_ID);
-  const myOpen = getMyBets().filter(b => b.status === 'pending').length;
+function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, user }) {
+  const me = user;
 
   const navItems = [
     { id: 'home',    label: 'Dashboard', icon: DIcon.home },
     { id: 'matches', label: 'Fixtures',  icon: DIcon.ball,    badge: '12' },
     { id: 'bracket', label: 'Bracket',   icon: DIcon.bracket },
     { id: 'leaders', label: 'Leaderboard', icon: DIcon.trophy },
-    { id: 'bets',    label: 'My Bets',   icon: DIcon.receipt, badge: String(myOpen) },
+    { id: 'bets',    label: 'My Bets',   icon: DIcon.receipt },
   ];
 
   return (
@@ -72,10 +69,10 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch })
         */}
 
         <div className="desk-user">
-          <div className="desk-user__avatar">{me?.name[0]}</div>
+          <div className="desk-user__avatar">{me?.display_name?.[0] || me?.username?.[0] || '?'}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="desk-user__name">{me?.name}</div>
-            <div className="desk-user__id">@{me?.id}</div>
+            <div className="desk-user__name">{me?.display_name || me?.username}</div>
+            <div className="desk-user__id">@{me?.username}</div>
           </div>
           <button className="desk-icon-btn" style={{ width: 32, height: 32 }}>
             {DIcon.settings}
@@ -166,21 +163,35 @@ function DeskFix({ match, onBet }) {
 }
 
 // ── Desktop Home ──────────────────────────────────────────────
-function DHomeScreen({ matches, balance, onBet, onNav }) {
+function DHomeScreen({ matches, balance, onBet, onNav, user }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 6);
   const featured = live[0] || upcoming[0];
 
-  const myBets = getMyBets();
+  const [myBets, setMyBets] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [activity, setActivity] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/bets?user_id=${user.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setMyBets(d); }).catch(() => {});
+    fetch('/api/leaderboard').then(r => r.json()).then(d => { if (Array.isArray(d)) setLeaderboard(d); }).catch(() => {});
+    fetch('/api/activity?limit=6').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setActivity(d.map(a => ({
+        id: a.id,
+        username: a.profiles?.display_name || a.profiles?.username || 'Unknown',
+        text: a.type === 'bet_placed' && a.payload ? `bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${a.payload.pick}` : a.type === 'bet_won' && a.payload ? `won ${CURRENCY_SYMBOL}${a.payload.payout}!` : a.type,
+        createdAt: a.created_at,
+      })));
+    }).catch(() => {});
+  }, [user]);
+
   const myOpenBets = myBets.filter(b => b.status === 'pending');
   const totalStake = myOpenBets.reduce((s, b) => s + b.amount, 0);
   const myWon = myBets.filter(b => b.status === 'won')
     .reduce((s, b) => s + ((b.payout || 0) - b.amount), 0);
 
-  const balances = getFriendBalances('alltime');
-  const sorted = [...FRIENDS]
-    .map(f => ({ ...f, balance: f.id === ME_ID ? balance : (balances[f.id] ?? STARTING_BALANCE) }))
-    .sort((a, b) => b.balance - a.balance).slice(0, 5);
+  const sorted = leaderboard.slice(0, 5);
 
   if (!featured) return <div className="eyebrow" style={{ padding: 24 }}>Loading…</div>;
 
@@ -267,13 +278,13 @@ function DHomeScreen({ matches, balance, onBet, onNav }) {
         </div>
         <div className="desk-stat">
           <div className="desk-stat__label">Group rank</div>
-          <div className="desk-stat__val">#1<span style={{ color: 'var(--ink-3)', fontSize: 16, fontWeight: 600 }}> /8</span></div>
-          <div className="desk-stat__sub">+₹3,140 ahead</div>
+          <div className="desk-stat__val">#{(leaderboard.findIndex(p => p.id === user?.id) + 1) || '-'}<span style={{ color: 'var(--ink-3)', fontSize: 16, fontWeight: 600 }}> /{leaderboard.length}</span></div>
+          <div className="desk-stat__sub">of {leaderboard.length} friends</div>
         </div>
         <div className="desk-stat">
           <div className="desk-stat__label">Pot total</div>
-          <div className="desk-stat__val">{fmtCompact(FRIENDS.reduce((s, f) => s + f.balance, 0))}</div>
-          <div className="desk-stat__sub">across 8 friends</div>
+          <div className="desk-stat__val">{fmtCompact(leaderboard.reduce((s, p) => s + p.balance, 0))}</div>
+          <div className="desk-stat__sub">across {leaderboard.length} friends</div>
         </div>
       </div>
 
@@ -296,12 +307,12 @@ function DHomeScreen({ matches, balance, onBet, onNav }) {
             </div>
             <div className="desk-lb">
               {sorted.map((f, i) => (
-                <div key={f.id} className={'desk-lb__row ' + (f.id === ME_ID ? 'me' : '')}>
+                <div key={f.id} className={'desk-lb__row ' + (user && f.id === user.id ? 'me' : '')}>
                   <span className="desk-lb__rank">{i + 1}</span>
-                  <div className="desk-lb__avatar">{f.name[0]}</div>
+                  <div className="desk-lb__avatar">{(f.display_name || f.username)[0]}</div>
                   <span className="desk-lb__name">
-                    {f.name}
-                    {f.id === ME_ID && (
+                    {f.display_name || f.username}
+                    {user && f.id === user.id && (
                       <span style={{ marginLeft: 6, color: 'var(--gold)', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em' }}>YOU</span>
                     )}
                   </span>
@@ -317,7 +328,10 @@ function DHomeScreen({ matches, balance, onBet, onNav }) {
               <span className="more mono" style={{ color: 'var(--gold)' }}>● live</span>
             </div>
             <div className="desk-feed">
-              {getActivity(getBets()).map(a => (
+              {activity.length === 0 && (
+                <div style={{ padding: 16, color: 'var(--ink-3)', fontSize: 13 }}>No activity yet</div>
+              )}
+              {activity.map(a => (
                 <div key={a.id} className="desk-feed__item">
                   <div className="desk-feed__avatar">{a.username[0]}</div>
                   <div className="desk-feed__text">
@@ -523,33 +537,19 @@ function DBracketMatch({ home, away, tbd }) {
 }
 
 // ── Desktop Leaderboard ───────────────────────────────────────
-function DLeaderboardScreen() {
-  const [period, setPeriod] = useState('alltime');
-  const balances = getFriendBalances(period);
-  const sorted = [...FRIENDS]
-    .map(f => ({ ...f, balance: balances[f.id] ?? STARTING_BALANCE }))
-    .sort((a, b) => b.balance - a.balance);
+function DLeaderboardScreen({ user }) {
+  const [sorted, setSorted] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/leaderboard').then(r => r.json()).then(d => { if (Array.isArray(d)) setSorted(d); }).catch(() => {});
+  }, []);
+
   const top3 = sorted.slice(0, 3);
 
   return (
     <>
-      <div className="desk-chiprow">
-        {[
-          { id: 'alltime', label: 'All time' },
-          { id: 'week',    label: 'This week' },
-          { id: 'today',   label: 'Today' },
-        ].map(p => (
-          <button
-            key={p.id}
-            className={'chip ' + (period === p.id ? 'active' : '')}
-            onClick={() => setPeriod(p.id)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
       <div className="desk-grid split" style={{ marginTop: 0 }}>
+        {top3.length >= 3 && (
         <div style={{
           background: 'var(--surface)', border: '1px solid var(--line)',
           borderRadius: 14, padding: '28px 28px 24px',
@@ -562,8 +562,8 @@ function DLeaderboardScreen() {
               { ...top3[2], rank: 3 },
             ].map(f => (
               <div key={f.id} className={'podium-block rank' + f.rank}>
-                <div className="podium-avatar">{f.name[0]}</div>
-                <div className="podium-name">{f.name}</div>
+                <div className="podium-avatar">{(f.display_name || f.username)[0]}</div>
+                <div className="podium-name">{f.display_name || f.username}</div>
                 <div className="podium-amt">{fmtMoney(f.balance)}</div>
                 <div className="podium-bar">{f.rank}</div>
               </div>
@@ -576,17 +576,18 @@ function DLeaderboardScreen() {
             Settled at end of tournament · Winner takes the pot
           </div>
         </div>
+        )}
 
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
           {sorted.map((f, i) => {
-            const IS_ME = f.id === ME_ID;
+            const IS_ME = user && f.id === user.id;
             const delta = f.balance - STARTING_BALANCE;
             return (
               <div key={f.id} className={'lb-row ' + (IS_ME ? 'me' : '')} style={{ padding: '13px 18px' }}>
                 <span className="lb-rank">{i + 1}</span>
-                <div className="lb-avatar">{f.name[0]}</div>
+                <div className="lb-avatar">{(f.display_name || f.username)[0]}</div>
                 <div className="lb-name">
-                  {f.name}
+                  {f.display_name || f.username}
                   {IS_ME && (
                     <span style={{
                       marginLeft: 8, fontSize: 9, padding: '2px 6px',
@@ -609,9 +610,15 @@ function DLeaderboardScreen() {
 }
 
 // ── Desktop My Bets ───────────────────────────────────────────
-function DBetsScreen() {
+function DBetsScreen({ user }) {
   const [tab, setTab] = useState('pending');
-  const mine = getMyBets();
+  const [mine, setMine] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/bets?user_id=${user.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setMine(d); }).catch(() => {});
+  }, [user]);
+
   const filtered = tab === 'all' ? mine : mine.filter(b => b.status === tab);
 
   const totalOpen = mine.filter(b => b.status === 'pending').reduce((s, b) => s + b.amount, 0);
@@ -681,7 +688,7 @@ function DBetsScreen() {
           </div>
         )}
         {filtered.map(b => {
-          const m = getMatch(b.matchId);
+          const m = getMatch(b.match_id);
           if (!m) return null;
           const h = getTeam(m.home);
           const a = getTeam(m.away);
@@ -721,12 +728,12 @@ function DBetsScreen() {
 }
 
 // ── Desktop App (root) ────────────────────────────────────────
-export default function DesktopApp({ tab, setTab, balance, openBet, matches }) {
+export default function DesktopApp({ tab, setTab, balance, openBet, matches, user }) {
   const titles = {
     home:    { title: 'Dashboard',    sub: 'FIFA World Cup 2026 · Group stage underway' },
     matches: { title: 'Fixtures',     sub: 'All matches · group stage + knockout' },
     bracket: { title: 'Tournament',   sub: '48 teams · 12 groups · single elimination' },
-    leaders: { title: 'Leaderboard',  sub: 'Yaaron group · 8 friends · ₹102,840 pot' },
+    leaders: { title: 'Leaderboard',  sub: 'Yaaron group · friend betting pool' },
     bets:    { title: 'My Bets',      sub: 'Your stakes across the tournament' },
   };
   const t = titles[tab] || titles.home;
@@ -735,13 +742,13 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches }) {
     <DesktopShell
       tab={tab} onNav={setTab} balance={balance}
       title={t.title} sub={t.sub}
-      hideSearch={tab === 'bracket'}
+      hideSearch={tab === 'bracket'} user={user}
     >
-      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} />}
+      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} />}
       {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} />}
       {tab === 'bracket' && <DBracketScreen matches={matches} />}
-      {tab === 'leaders' && <DLeaderboardScreen />}
-      {tab === 'bets'    && <DBetsScreen />}
+      {tab === 'leaders' && <DLeaderboardScreen user={user} />}
+      {tab === 'bets'    && <DBetsScreen user={user} />}
     </DesktopShell>
   );
 }
