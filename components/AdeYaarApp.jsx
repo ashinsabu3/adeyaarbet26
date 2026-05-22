@@ -6,6 +6,7 @@ import { STARTING_BALANCE, fmtMoney } from '@/lib/currency';
 import { initBetStore, placeBet, getBalance, getMyBets, getPoolForMatch } from '@/lib/bet-store';
 import { useUser } from '@/lib/hooks';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
+import SearchOverlay from '@/components/SearchOverlay';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
 import BracketScreen from '@/components/screens/BracketScreen';
@@ -49,6 +50,7 @@ export default function AdeYaarApp() {
   const [bets, setBets]         = useState([]);
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Initialize bet store and load state
   useEffect(() => {
@@ -76,6 +78,17 @@ export default function AdeYaarApp() {
 
   const openBet  = useCallback((match, pick) => setBetSheet({ match, pick }), []);
   const closeBet = useCallback(() => setBetSheet(null), []);
+
+  const handleSearchClose = useCallback(() => setSearchOpen(false), []);
+  const handleSearchOpen = useCallback(() => setSearchOpen(true), []);
+  const handleSelectMatch = useCallback((match) => {
+    setSearchOpen(false);
+    setTab('matches');
+  }, []);
+  const handleSelectUser = useCallback((user) => {
+    setSearchOpen(false);
+    setTab('leaders');
+  }, []);
 
   const confirmBet = useCallback(({ matchId, pick, amount }) => {
     try {
@@ -122,6 +135,8 @@ export default function AdeYaarApp() {
           balance={balance} openBet={openBet}
           matches={matches}
           user={user}
+          onSelectMatch={handleSelectMatch}
+          onSelectUser={handleSelectUser}
         />
         {betSheet && (
           <PlaceBetSheet
@@ -143,7 +158,7 @@ export default function AdeYaarApp() {
       {/* Phone frame */}
       <div className="phone-frame">
         <div className="app" data-theme={theme}>
-          <AppHeader balance={balance} onTap={() => setTab('bets')} />
+          <AppHeader balance={balance} onTap={() => setTab('bets')} onSearchOpen={handleSearchOpen} />
 
           <div className="scroll">
             {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onNav={setTab} />}
@@ -167,6 +182,15 @@ export default function AdeYaarApp() {
           )}
 
           {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+
+          {searchOpen && (
+            <SearchOverlay
+              mode="overlay"
+              onSelectMatch={handleSelectMatch}
+              onSelectUser={handleSelectUser}
+              onClose={handleSearchClose}
+            />
+          )}
         </div>
       </div>
     </div>
