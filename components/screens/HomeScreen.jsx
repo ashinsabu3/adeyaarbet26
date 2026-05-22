@@ -39,7 +39,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
 
   return (
     <div>
-      <HeroMatch match={featured} onBet={onBet} />
+      {featured && <HeroMatch match={featured} onBet={onBet} />}
 
       {/* Stats strip */}
       <div className="stats-strip">

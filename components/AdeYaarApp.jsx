@@ -77,6 +77,11 @@ export default function AdeYaarApp() {
 
   const confirmBet = useCallback(({ matchId, pick, amount }) => {
     try {
+      // Check live match status (from FIFA merge) before placing bet
+      const liveMatch = matches.find(m => m.id === matchId);
+      if (liveMatch && liveMatch.status === 'finished') {
+        throw new Error('Match already finished');
+      }
       placeBet(matchId, pick, amount);
       setBalance(getBalance());
       setBets(getMyBets());
@@ -89,7 +94,7 @@ export default function AdeYaarApp() {
       setToast(`Error: ${err.message}`);
       setBetSheet(null);
     }
-  }, []);
+  }, [matches]);
 
   const poolInfo = betSheet ? getPoolForMatch(betSheet.match.id) : null;
 
