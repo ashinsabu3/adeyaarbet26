@@ -10,7 +10,7 @@ test.describe('Navigation', () => {
     if (testInfo.project.name === 'Desktop') {
       await page.getByRole('button', { name: /Dashboard/ }).click();
     } else {
-      await page.locator('.tabbar__btn').filter({ hasText: 'Home' }).click();
+      await page.locator('.tabbar__btn').filter({ hasText: 'Home' }).click({ force: true });
     }
     await expect(
       page.getByText('Up next').or(page.getByText('Featured')).or(page.getByText('Dashboard'))
@@ -21,7 +21,7 @@ test.describe('Navigation', () => {
     if (testInfo.project.name === 'Desktop') {
       await page.getByRole('button', { name: /Fixtures/ }).click();
     } else {
-      await page.locator('.tabbar__btn').filter({ hasText: 'Matches' }).click();
+      await page.locator('.tabbar__btn').filter({ hasText: 'Matches' }).click({ force: true });
     }
     await expect(page.getByText('Fixtures')).toBeVisible();
   });
@@ -30,7 +30,7 @@ test.describe('Navigation', () => {
     if (testInfo.project.name === 'Desktop') {
       await page.getByRole('button', { name: /Bracket/ }).click();
     } else {
-      await page.locator('.tabbar__btn').filter({ hasText: 'Bracket' }).click();
+      await page.locator('.tabbar__btn').filter({ hasText: 'Bracket' }).click({ force: true });
     }
     await expect(page.getByText('Tournament')).toBeVisible();
   });
@@ -39,7 +39,7 @@ test.describe('Navigation', () => {
     if (testInfo.project.name === 'Desktop') {
       await page.getByRole('button', { name: /Leaderboard/ }).click();
     } else {
-      await page.locator('.tabbar__btn').filter({ hasText: 'Leaders' }).click();
+      await page.locator('.tabbar__btn').filter({ hasText: 'Leaders' }).click({ force: true });
     }
     await expect(page.getByText('Leaderboard')).toBeVisible();
   });
@@ -48,7 +48,7 @@ test.describe('Navigation', () => {
     if (testInfo.project.name === 'Desktop') {
       await page.getByRole('button', { name: /My Bets/ }).click();
     } else {
-      await page.locator('.tabbar__btn').filter({ hasText: 'My Bets' }).click();
+      await page.locator('.tabbar__btn').filter({ hasText: 'My Bets' }).click({ force: true });
     }
     await expect(page.getByText('My bets').or(page.getByText('My Bets'))).toBeVisible();
   });

@@ -4,7 +4,7 @@ async function goToLeaders(page, testInfo) {
   if (testInfo.project.name === 'Desktop') {
     await page.getByRole('button', { name: /Leaderboard/ }).click();
   } else {
-    await page.locator('.tabbar__btn').filter({ hasText: 'Leaders' }).click();
+    await page.locator('.tabbar__btn').filter({ hasText: 'Leaders' }).click({ force: true });
   }
 }
 

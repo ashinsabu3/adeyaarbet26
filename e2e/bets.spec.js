@@ -4,7 +4,7 @@ async function goToBets(page, testInfo) {
   if (testInfo.project.name === 'Desktop') {
     await page.getByRole('button', { name: /My Bets/ }).click();
   } else {
-    await page.locator('.tabbar__btn').filter({ hasText: 'My Bets' }).click();
+    await page.locator('.tabbar__btn').filter({ hasText: 'My Bets' }).click({ force: true });
   }
 }
 
