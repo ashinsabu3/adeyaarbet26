@@ -136,49 +136,8 @@ function LoginContent() {
           </p>
         </div>
 
-        {/* Quick login — always available */}
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ color: '#5a7a6a', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
-            Pick your player
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {FRIENDS.map(f => (
-              <button
-                key={f.id}
-                onClick={() => {
-                  localStorage.setItem('adeyaar_user', JSON.stringify({
-                    id: f.id,
-                    username: f.id,
-                    display_name: f.name,
-                    balance: STARTING_BALANCE,
-                  }));
-                  window.location.href = '/';
-                }}
-                style={{
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  borderRadius: 8,
-                  border: '1px solid #1a4a3a',
-                  background: '#0a2e22',
-                  color: '#f5f5f5',
-                  cursor: 'pointer',
-                }}
-              >
-                {f.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* OAuth + email login — only when Supabase is configured */}
+        {/* Production: Google OAuth + email login (when Supabase is configured) */}
         {supabaseBrowser && (<>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <div style={{ flex: 1, height: 1, background: '#1a4a3a' }} />
-            <span style={{ color: '#5a7a6a', fontSize: 12 }}>or sign in with account</span>
-            <div style={{ flex: 1, height: 1, background: '#1a4a3a' }} />
-          </div>
-
           <button onClick={handleGoogleLogin} style={{
             ...btnStyle,
             background: '#fff',
@@ -197,6 +156,12 @@ function LoginContent() {
             </svg>
             Continue with Google
           </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div style={{ flex: 1, height: 1, background: '#1a4a3a' }} />
+            <span style={{ color: '#5a7a6a', fontSize: 12 }}>or</span>
+            <div style={{ flex: 1, height: 1, background: '#1a4a3a' }} />
+          </div>
 
           <form onSubmit={mode === 'login' ? handleEmailLogin : mode === 'signup' ? handleSignup : handleForgotPassword}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
@@ -272,6 +237,43 @@ function LoginContent() {
             )}
           </div>
         </>)}
+
+        {/* Local dev: friend picker (when Supabase NOT configured) */}
+        {!supabaseBrowser && (
+          <div>
+            <p style={{ color: '#5a7a6a', fontSize: 12, textAlign: 'center', marginBottom: 12 }}>
+              Pick your player (dev mode)
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {FRIENDS.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    localStorage.setItem('adeyaar_user', JSON.stringify({
+                      id: f.id,
+                      username: f.id,
+                      display_name: f.name,
+                      balance: STARTING_BALANCE,
+                    }));
+                    window.location.href = '/';
+                  }}
+                  style={{
+                    padding: '10px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    borderRadius: 8,
+                    border: '1px solid #1a4a3a',
+                    background: '#0a2e22',
+                    color: '#f5f5f5',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
