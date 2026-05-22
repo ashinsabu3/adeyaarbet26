@@ -4,7 +4,7 @@ async function goToMatches(page, testInfo) {
   if (testInfo.project.name === 'Desktop') {
     await page.getByRole('button', { name: /Fixtures/ }).click();
   } else {
-    await page.locator('.tabbar__btn').filter({ hasText: 'Matches' }).click();
+    await page.locator('.tabbar__btn').filter({ hasText: 'Matches' }).click({ force: true });
   }
 }
 

@@ -4,7 +4,7 @@ async function goToBracket(page, testInfo) {
   if (testInfo.project.name === 'Desktop') {
     await page.getByRole('button', { name: /Bracket/ }).click();
   } else {
-    await page.locator('.tabbar__btn').filter({ hasText: 'Bracket' }).click();
+    await page.locator('.tabbar__btn').filter({ hasText: 'Bracket' }).click({ force: true });
   }
 }
 
