@@ -15,7 +15,12 @@
     "react-dom": "^18"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.5",
+    "@jest/globals": "^30.4.1",
+    "babel-jest": "^30.4.1",
     "eslint": "^8",
-    "eslint-config-next": "^15.3.2"
+    "eslint-config-next": "^15.3.2",
+    "jest": "^30.4.2"
   }
 }
