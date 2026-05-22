@@ -1,11 +1,11 @@
 'use client';
 
-import { MATCHES, BETS, ACTIVITY, ME_ID, getFriend, fmtCompact } from '@/lib/data';
+import { BETS, ACTIVITY, ME_ID, getFriend, fmtCompact } from '@/lib/data';
 import { HeroMatch, MatchCard, SectionHead } from '@/components';
 
-export default function HomeScreen({ balance, onBet, onNav }) {
-  const live = MATCHES.filter(m => m.status === 'live');
-  const upcoming = MATCHES.filter(m => m.status === 'upcoming').slice(0, 3);
+export default function HomeScreen({ matches = [], balance, onBet, onNav }) {
+  const live = matches.filter(m => m.status === 'live');
+  const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 3);
   const featured = live[0] || upcoming[0];
   const myOpenBets = BETS.filter(b => b.user === ME_ID && b.status === 'open').length;
   const myWonToday = BETS.filter(b => b.user === ME_ID && b.status === 'won')

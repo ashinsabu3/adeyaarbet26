@@ -133,10 +133,12 @@ export function MatchCard({ match, onBet }) {
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
 
+  const stageLabel = match.group ? `Group ${match.group}` : 'Knockout';
+
   return (
     <div className="match-card">
       <div className="match-card__head">
-        <span>{match.stage === 'GROUP' ? `Group · ${fmtDate(match.date)}` : `Round of 32 · ${fmtDate(match.date)}`}</span>
+        <span>{stageLabel} · {fmtDate(match.date)}</span>
         {isLive ? <LiveDot minute={match.minute} /> :
          isFinished ? <span style={{ color: 'var(--ink-3)' }}>FT</span> :
          <span style={{ fontFamily: 'var(--font-mono)' }}>{match.time}</span>}
@@ -149,7 +151,7 @@ export function MatchCard({ match, onBet }) {
         </div>
 
         <div className="match-card__vs">
-          {(isLive || isFinished) ? (
+          {(isLive || isFinished) && match.score ? (
             <div className="match-card__score">{match.score[0]}–{match.score[1]}</div>
           ) : (
             <>
@@ -168,22 +170,19 @@ export function MatchCard({ match, onBet }) {
       {!isFinished && (
         <div className="match-card__odds">
           {[
-            { key: 'home', label: home.name.length > 8 ? home.code : '1', val: match.odds.home },
-            { key: 'draw', label: 'X', val: match.odds.draw },
-            { key: 'away', label: away.name.length > 8 ? away.code : '2', val: match.odds.away },
-          ].map(o => {
-            const isFav = o.val === Math.min(match.odds.home, match.odds.draw, match.odds.away);
-            return (
-              <button
-                key={o.key}
-                className={'odds-btn ' + (isFav ? 'fav' : '')}
-                onClick={(e) => { e.stopPropagation(); onBet?.(match, o.key); }}
-              >
-                <span className="odds-btn__label">{o.label}</span>
-                <span className="odds-btn__val">{o.val.toFixed(2)}</span>
-              </button>
-            );
-          })}
+            { key: 'home', label: home.code },
+            { key: 'draw', label: 'X' },
+            { key: 'away', label: away.code },
+          ].map(o => (
+            <button
+              key={o.key}
+              className="odds-btn"
+              onClick={(e) => { e.stopPropagation(); onBet?.(match, o.key); }}
+            >
+              <span className="odds-btn__label">{o.label}</span>
+              {/* odds-btn__val: odds coming soon */}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -211,7 +210,7 @@ export function HeroMatch({ match, onBet }) {
           <div className="hero__team-name">{home.name}</div>
         </div>
         <div className="col center" style={{ gap: 6 }}>
-          {isLive ? (
+          {isLive && match.score ? (
             <div className="match-card__score" style={{ fontSize: 32 }}>
               {match.score[0]}–{match.score[1]}
             </div>
@@ -232,10 +231,10 @@ export function HeroMatch({ match, onBet }) {
 
       <div className="hero__cta-row">
         <button className="btn primary lg" onClick={() => onBet(match, 'home')}>
-          Bet {home.code} · {match.odds.home.toFixed(2)}
+          Bet {home.code}
         </button>
         <button className="btn lg" onClick={() => onBet(match, 'away')}>
-          Bet {away.code} · {match.odds.away.toFixed(2)}
+          Bet {away.code}
         </button>
       </div>
     </div>
@@ -250,9 +249,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
 
   const home = getTeam(match.home);
   const away = getTeam(match.away);
-  const odds = match.odds[side];
-  const possibleWin = Math.round(amount * odds);
-  const profit = possibleWin - amount;
+  // const odds = match.odds?.[side]; // odds coming soon
   const sideName = side === 'home' ? home.name : side === 'away' ? away.name : 'Draw';
   const overBalance = amount > balance;
 
@@ -307,7 +304,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
               <span className="odds-btn__label">
                 {o.l.length > 8 ? (o.k === 'home' ? home.code : o.k === 'away' ? away.code : 'X') : o.l}
               </span>
-              <span className="odds-btn__val">{match.odds[o.k].toFixed(2)}</span>
+              {/* odds coming soon */}
             </button>
           ))}
         </div>
@@ -350,25 +347,19 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
         }}>
           <div className="row between" style={{ marginBottom: 6 }}>
             <span className="muted" style={{ fontSize: 12 }}>Pick</span>
-            <span style={{ fontWeight: 600, fontSize: 13 }}>{sideName} @ {odds.toFixed(2)}</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{sideName}</span>
           </div>
-          <div className="row between" style={{ marginBottom: 6 }}>
+          <div className="row between">
             <span className="muted" style={{ fontSize: 12 }}>Stake</span>
             <span className="mono" style={{ fontWeight: 700 }}>{fmtMoney(amount)}</span>
           </div>
-          <div className="row between" style={{ paddingTop: 10, marginTop: 6, borderTop: '1px solid var(--line)' }}>
-            <span style={{ fontWeight: 600, fontSize: 13 }}>Possible win</span>
-            <div style={{ textAlign: 'right' }}>
-              <div className="mono gold" style={{ fontWeight: 800, fontSize: 18 }}>{fmtMoney(possibleWin)}</div>
-              <div className="mono dim" style={{ fontSize: 11 }}>+{fmtMoney(profit)} profit</div>
-            </div>
-          </div>
+          {/* Possible win — coming once odds are wired */}
         </div>
 
         <button
           className="btn primary block lg"
           disabled={overBalance}
-          onClick={() => onConfirm({ matchId: match.id, pick: side, amount, oddsAt: odds })}
+          onClick={() => onConfirm({ matchId: match.id, pick: side, amount })}
         >
           {overBalance ? 'Insufficient balance' : `Place ₹${amount.toLocaleString('en-IN')} bet`}
         </button>

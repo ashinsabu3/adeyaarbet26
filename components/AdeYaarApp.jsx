@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { getFriend, getMatch, getTeam, ME_ID, fmtCompact } from '@/lib/data';
+import { useState, useEffect } from 'react';
+import { MATCHES, getFriend, getMatch, getTeam, ME_ID, fmtCompact } from '@/lib/data';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
@@ -9,12 +9,48 @@ import BracketScreen from '@/components/screens/BracketScreen';
 import LeaderboardScreen from '@/components/screens/LeaderboardScreen';
 import BetsScreen from '@/components/screens/BetsScreen';
 
+function getFifaStatus(fifa) {
+  if (fifa.HomeTeamScore != null && fifa.AwayTeamScore != null) return 'finished';
+  if (fifa.MatchStatus === 3) return 'live';
+  return 'upcoming';
+}
+
+function mergeWithFifa(staticMatch, fifaResults) {
+  if (!fifaResults?.length) return { ...staticMatch, status: 'upcoming' };
+  const fifa = fifaResults.find(m =>
+    m.Home?.Abbreviation === staticMatch.home &&
+    m.Away?.Abbreviation === staticMatch.away
+  );
+  if (!fifa) return { ...staticMatch, status: 'upcoming' };
+  const stadiumName = fifa.Stadium?.Name?.[0]?.Description;
+  const cityName = fifa.Stadium?.CityName?.[0]?.Description;
+  const venue = stadiumName
+    ? cityName ? `${stadiumName}, ${cityName}` : stadiumName
+    : staticMatch.venue;
+  const status = getFifaStatus(fifa);
+  const score = (fifa.HomeTeamScore != null && fifa.AwayTeamScore != null)
+    ? [fifa.HomeTeamScore, fifa.AwayTeamScore]
+    : null;
+  const minute = fifa.MatchMinute ?? null;
+  return { ...staticMatch, venue, fifaId: fifa.IdMatch, status, score, minute };
+}
+
 export default function AdeYaarApp() {
   const theme = 'midnight';
   const [tab, setTab]     = useState('home');
   const [betSheet, setBetSheet] = useState(null); // { match, pick }
   const [toast, setToast]       = useState(null);
   const [balance, setBalance]   = useState(getFriend(ME_ID).balance);
+  const [fifaData, setFifaData] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/fifa/matches')
+      .then(r => r.json())
+      .then(setFifaData)
+      .catch(() => {});
+  }, []);
+
+  const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
   const openBet  = (match, pick) => setBetSheet({ match, pick });
   const closeBet = () => setBetSheet(null);
@@ -51,8 +87,8 @@ export default function AdeYaarApp() {
           <AppHeader balance={balance} onTap={() => setTab('bets')} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen balance={balance} onBet={openBet} onNav={setTab} />}
-            {tab === 'matches' && <MatchesScreen onBet={openBet} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} />}
+            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} />}
             {tab === 'bracket' && <BracketScreen />}
             {tab === 'leaders' && <LeaderboardScreen balance={balance} />}
             {tab === 'bets'    && <BetsScreen />}
