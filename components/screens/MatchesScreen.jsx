@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import { MATCHES, fmtDay, fmtDate } from '@/lib/data';
 import { MatchCard } from '@/components';
 
+// FIFA MatchStatus: 0/1 = upcoming, 3 = live; scores non-null = finished
+function getFifaStatus(fifa) {
+  if (fifa.HomeTeamScore != null && fifa.AwayTeamScore != null) return 'finished';
+  if (fifa.MatchStatus === 3) return 'live';
+  return 'upcoming';
+}
+
 function mergeWithFifa(staticMatch, fifaResults) {
   if (!fifaResults?.length) return staticMatch;
   const fifa = fifaResults.find(m =>
@@ -16,7 +23,11 @@ function mergeWithFifa(staticMatch, fifaResults) {
   const venue = stadiumName
     ? cityName ? `${stadiumName}, ${cityName}` : stadiumName
     : staticMatch.venue;
-  return { ...staticMatch, venue, fifaId: fifa.IdMatch };
+  const status = getFifaStatus(fifa);
+  const score = (fifa.HomeTeamScore != null && fifa.AwayTeamScore != null)
+    ? [fifa.HomeTeamScore, fifa.AwayTeamScore]
+    : null;
+  return { ...staticMatch, venue, fifaId: fifa.IdMatch, status, score };
 }
 
 export default function MatchesScreen({ onBet }) {
