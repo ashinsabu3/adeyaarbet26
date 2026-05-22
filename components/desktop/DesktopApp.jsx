@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
   FRIENDS, BETS, ACTIVITY, GROUPS, BRACKET,
   ME_ID, getFriend, getTeam, getMatch,
-  fmtMoney, fmtCompact, fmtDay, fmtDate,
+  fmtMoney, fmtCompact, fmtDay, fmtDate, fmtTimeIST,
 } from '@/lib/data';
 import { Flag, LiveDot } from '@/components';
 
@@ -121,7 +121,7 @@ function DeskFix({ match, onBet }) {
   return (
     <div className="desk-fix">
       <div className="desk-fix__time">
-        <b>{IS_LIVE ? 'LIVE' : IS_FINISHED ? 'FT' : match.time}</b>
+        <b>{IS_LIVE ? 'LIVE' : IS_FINISHED ? 'FT' : fmtTimeIST(match.time)}</b>
         <span>{fmtDay(match.date).slice(0,3)} · {fmtDate(match.date)}</span>
       </div>
       <div className="desk-fix__teams">
@@ -193,7 +193,7 @@ function DHomeScreen({ matches, balance, onBet, onNav }) {
           {IS_LIVE
             ? <LiveDot minute={featured.minute} />
             : <span className="mono" style={{ color: 'var(--ink-3)', fontSize: 12 }}>
-                {fmtDay(featured.date)} · {featured.time} · {featured.venue}
+                {fmtDay(featured.date)} · {fmtTimeIST(featured.time)} · {featured.venue}
               </span>
           }
         </div>
@@ -214,7 +214,7 @@ function DHomeScreen({ matches, balance, onBet, onNav }) {
           ) : (
             <div>
               <div className="dhero__vs">VS</div>
-              <div className="dhero__vs-time">{featured.time}</div>
+              <div className="dhero__vs-time">{fmtTimeIST(featured.time)}</div>
             </div>
           )}
           <div className="dhero__team right">
@@ -679,7 +679,7 @@ function DBetsScreen() {
           return (
             <div key={b.id} className="desk-bet">
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)' }}>
-                <div style={{ color: 'var(--ink)', fontWeight: 600, fontSize: 12 }}>{m.time}</div>
+                <div style={{ color: 'var(--ink)', fontWeight: 600, fontSize: 12 }}>{fmtTimeIST(m.time)}</div>
                 {fmtDate(m.date)}
               </div>
               <div className="desk-bet__match">

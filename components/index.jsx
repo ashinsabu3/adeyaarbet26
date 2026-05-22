@@ -1,6 +1,6 @@
 'use client';
 
-import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, fmtMoney, getMatch } from '@/lib/data';
+import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, fmtMoney, getMatch, fmtTimeIST } from '@/lib/data';
 import { useState, useEffect } from 'react';
 import supabase from '@/lib/supabase';
 
@@ -144,7 +144,7 @@ export function MatchCard({ match, onBet }) {
         <span>{stageLabel} · {fmtDate(match.date)}</span>
         {isLive ? <LiveDot minute={match.minute} /> :
          isFinished ? <span style={{ color: 'var(--ink-3)' }}>FT</span> :
-         <span style={{ fontFamily: 'var(--font-mono)' }}>{match.time}</span>}
+         <span style={{ fontFamily: 'var(--font-mono)' }}>{fmtTimeIST(match.time)}</span>}
       </div>
 
       <div className="match-card__teams">
@@ -158,7 +158,7 @@ export function MatchCard({ match, onBet }) {
             <div className="match-card__score">{match.score[0]}–{match.score[1]}</div>
           ) : (
             <>
-              <div className="match-card__vs-time">{match.time}</div>
+              <div className="match-card__vs-time">{fmtTimeIST(match.time)}</div>
               <div style={{ fontSize: 10 }}>{match.venue?.split(',')[1]?.trim()}</div>
             </>
           )}
@@ -221,7 +221,7 @@ export function HeroMatch({ match, onBet }) {
             <>
               <div className="hero__vs">VS</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)' }}>
-                {match.time}
+                {fmtTimeIST(match.time)}
               </div>
             </>
           )}
@@ -368,7 +368,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
             {/* Match preview */}
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="row between" style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>
-                <span>Round of 32 · {fmtDay(match.date)} {match.time}</span>
+                <span>Round of 32 · {fmtDay(match.date)} {fmtTimeIST(match.time)}</span>
                 <span className="mono">{match.id}</span>
               </div>
               <div className="row between center" style={{ gap: 10 }}>
@@ -492,7 +492,7 @@ export function BetCard({ bet }) {
   return (
     <div className="bet-card">
       <div className="bet-card__head">
-        <span>{fmtDay(match.date)} · {match.time}</span>
+        <span>{fmtDay(match.date)} · {fmtTimeIST(match.time)}</span>
         <span className={'bet-card__status ' + bet.status}>{bet.status}</span>
       </div>
 
