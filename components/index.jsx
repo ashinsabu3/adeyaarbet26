@@ -80,10 +80,12 @@ export function AppHeader({ balance, onTap }) {
         <div className="brand-mark">A</div>
         <div className="brand-name">AdeYaar <em>26</em></div>
       </div>
+      {/* balance pill hidden until funds/balance feature is ready
       <button className="balance-pill" onClick={onTap}>
         <div className="balance-pill__icon">₹</div>
         <span className="balance-pill__amt">{fmtCompact(balance)}</span>
       </button>
+      */}
     </div>
   );
 }
