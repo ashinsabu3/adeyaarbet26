@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { MATCHES, getFriend, getMatch, getTeam, ME_ID, fmtCompact } from '@/lib/data';
+import { useState, useEffect, useCallback } from 'react';
+import { MATCHES, getMatch, getTeam, ME_ID } from '@/lib/data';
+import { STARTING_BALANCE, fmtMoney } from '@/lib/currency';
+import { initBetStore, placeBet, getBalance, getMyBets, getPoolForMatch } from '@/lib/bet-store';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
@@ -41,9 +43,17 @@ export default function AdeYaarApp() {
   const [tab, setTab]           = useState('home');
   const [betSheet, setBetSheet] = useState(null);
   const [toast, setToast]       = useState(null);
-  const [balance, setBalance]   = useState(getFriend(ME_ID).balance);
+  const [balance, setBalance]   = useState(STARTING_BALANCE);
+  const [bets, setBets]         = useState([]);
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
+
+  // Initialize bet store and load state
+  useEffect(() => {
+    initBetStore();
+    setBalance(getBalance());
+    setBets(getMyBets());
+  }, []);
 
   useEffect(() => {
     fetch('/api/fifa/matches')
@@ -62,17 +72,26 @@ export default function AdeYaarApp() {
 
   const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
-  const openBet  = (match, pick) => setBetSheet({ match, pick });
-  const closeBet = () => setBetSheet(null);
+  const openBet  = useCallback((match, pick) => setBetSheet({ match, pick }), []);
+  const closeBet = useCallback(() => setBetSheet(null), []);
 
-  const confirmBet = ({ matchId, pick, amount, oddsAt }) => {
-    setBalance(b => b - amount);
-    setBetSheet(null);
-    const match = getMatch(matchId);
-    const team  = pick === 'home' ? getTeam(match.home) :
-                  pick === 'away' ? getTeam(match.away) : null;
-    setToast(`Bet placed · ₹${amount.toLocaleString('en-IN')} on ${team ? team.name : 'Draw'}`);
-  };
+  const confirmBet = useCallback(({ matchId, pick, amount }) => {
+    try {
+      placeBet(matchId, pick, amount);
+      setBalance(getBalance());
+      setBets(getMyBets());
+      setBetSheet(null);
+      const match = getMatch(matchId);
+      const team = pick === 'home' ? getTeam(match.home) :
+                   pick === 'away' ? getTeam(match.away) : null;
+      setToast(`Bet placed · ${fmtMoney(amount)} on ${team ? team.name : 'Draw'}`);
+    } catch (err) {
+      setToast(`Error: ${err.message}`);
+      setBetSheet(null);
+    }
+  }, []);
+
+  const poolInfo = betSheet ? getPoolForMatch(betSheet.match.id) : null;
 
   if (isDesktop) {
     return (
@@ -87,6 +106,7 @@ export default function AdeYaarApp() {
             match={betSheet.match}
             pick={betSheet.pick}
             balance={balance}
+            poolInfo={poolInfo}
             onClose={closeBet}
             onConfirm={confirmBet}
           />
@@ -104,11 +124,11 @@ export default function AdeYaarApp() {
           <AppHeader balance={balance} onTap={() => setTab('bets')} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onNav={setTab} />}
             {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen balance={balance} />}
-            {tab === 'bets'    && <BetsScreen />}
+            {tab === 'bets'    && <BetsScreen bets={bets} />}
           </div>
 
           <TabBar active={tab} onChange={setTab} />
@@ -118,6 +138,7 @@ export default function AdeYaarApp() {
               match={betSheet.match}
               pick={betSheet.pick}
               balance={balance}
+              poolInfo={poolInfo}
               onClose={closeBet}
               onConfirm={confirmBet}
             />
