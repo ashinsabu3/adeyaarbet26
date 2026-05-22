@@ -1,11 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MATCHES, fmtDay, fmtDate } from '@/lib/data';
 import { MatchCard } from '@/components';
 
+function mergeWithFifa(staticMatch, fifaResults) {
+  if (!fifaResults?.length) return staticMatch;
+  const fifa = fifaResults.find(m =>
+    (m.Home?.Abbreviation === staticMatch.home || m.Home?.IdCountry === staticMatch.home) &&
+    (m.Away?.Abbreviation === staticMatch.away || m.Away?.IdCountry === staticMatch.away)
+  );
+  if (!fifa) return staticMatch;
+  const stadiumName = fifa.Stadium?.Name?.[0]?.Description;
+  const cityName = fifa.Stadium?.CityName?.[0]?.Description;
+  const venue = stadiumName
+    ? cityName ? `${stadiumName}, ${cityName}` : stadiumName
+    : staticMatch.venue;
+  return { ...staticMatch, venue, fifaId: fifa.IdMatch };
+}
+
 export default function MatchesScreen({ onBet }) {
   const [filter, setFilter] = useState('all');
+  const [fifaData, setFifaData] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/fifa/matches')
+      .then(r => r.json())
+      .then(setFifaData)
+      .catch(() => {});
+  }, []);
+
+  const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
   const filters = [
     { id: 'all',   label: 'All' },
@@ -15,11 +40,11 @@ export default function MatchesScreen({ onBet }) {
     { id: 'group', label: 'Group' },
   ];
 
-  let filtered = MATCHES;
-  if (filter === 'live')  filtered = MATCHES.filter(m => m.status === 'live');
-  if (filter === 'today') filtered = MATCHES.filter(m => m.date === '2026-06-29');
-  if (filter === 'r32')   filtered = MATCHES.filter(m => m.stage === 'R32');
-  if (filter === 'group') filtered = MATCHES.filter(m => m.stage === 'GROUP');
+  let filtered = matches;
+  if (filter === 'live')  filtered = matches.filter(m => m.status === 'live');
+  if (filter === 'today') filtered = matches.filter(m => m.date === '2026-06-29');
+  if (filter === 'r32')   filtered = matches.filter(m => m.stage === 'R32');
+  if (filter === 'group') filtered = matches.filter(m => m.stage === 'GROUP');
 
   const byDate = {};
   filtered.forEach(m => { (byDate[m.date] = byDate[m.date] || []).push(m); });

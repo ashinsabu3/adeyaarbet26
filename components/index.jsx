@@ -44,8 +44,22 @@ export const Icon = {
 // ── Flag ─────────────────────────────────────────────────────
 export function Flag({ code, size = 'md' }) {
   const team = getTeam(code);
+  const [imgFailed, setImgFailed] = useState(false);
   const cls = size === 'xl' ? 'flag xl' : size === 'lg' ? 'flag lg' : size === 'sm' ? 'flag sm' : 'flag';
-  return <div className={cls}><span>{team.flag}</span></div>;
+  return (
+    <div className={cls}>
+      {imgFailed ? (
+        <span>{team.flag}</span>
+      ) : (
+        <img
+          src={`https://api.fifa.com/api/v3/picture/flags-sq-5/${code}`}
+          alt={team.name}
+          onError={() => setImgFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', display: 'block' }}
+        />
+      )}
+    </div>
+  );
 }
 
 // ── Live dot ─────────────────────────────────────────────────
