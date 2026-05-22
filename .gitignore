@@ -27,6 +27,10 @@ playwright/.cache/
 playwright-report/
 test-results/
 
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
 # Misc
 .DS_Store
 *.pem

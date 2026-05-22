@@ -73,26 +73,19 @@ export function LiveDot({ minute }) {
 }
 
 // ── App Header ───────────────────────────────────────────────
-export function AppHeader({ balance, onTap, onSearchOpen }) {
+export function AppHeader({ balance, onTap }) {
   return (
     <div className="app-header">
       <div className="app-header__brand">
         <div className="brand-mark">A</div>
         <div className="brand-name">AdeYaar <em>26</em></div>
       </div>
-      <div className="app-header__actions">
-        <button className="app-header__search-btn" onClick={onSearchOpen} aria-label="Search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
-          </svg>
-        </button>
-        {/* balance pill hidden until funds/balance feature is ready
-        <button className="balance-pill" onClick={onTap}>
-          <div className="balance-pill__icon">₹</div>
-          <span className="balance-pill__amt">{fmtCompact(balance)}</span>
-        </button>
-        */}
-      </div>
+      {/* balance pill hidden until funds/balance feature is ready
+      <button className="balance-pill" onClick={onTap}>
+        <div className="balance-pill__icon">₹</div>
+        <span className="balance-pill__amt">{fmtCompact(balance)}</span>
+      </button>
+      */}
     </div>
   );
 }
@@ -260,6 +253,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
   const sideName = side === 'home' ? home.name : side === 'away' ? away.name : 'Draw';
   const overBalance = amount > balance;
 
+  // Compute potential payout from pool info
   const pool = poolInfo || { total: 0, bettorCount: 0, bySide: { home: 0, away: 0, draw: 0 } };
   const totalPool = pool.total + amount;
   const sideTotal = (pool.bySide[side] || 0) + amount;
@@ -338,7 +332,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 36,
           color: overBalance ? 'var(--loss)' : 'var(--ink)',
         }}>
-          {fmtMoney(amount)}
+          {CURRENCY_SYMBOL}{amount.toLocaleString('en-IN')}
         </div>
 
         <input
@@ -352,7 +346,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
         <div className="amount-presets" style={{ marginBottom: 18 }}>
           {presets.map(p => (
             <button key={p} className={amount === p ? 'active' : ''} onClick={() => setAmount(p)}>
-              {fmtMoney(p)}
+              {CURRENCY_SYMBOL}{p}
             </button>
           ))}
         </div>
@@ -382,7 +376,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
           disabled={overBalance}
           onClick={() => onConfirm({ matchId: match.id, pick: side, amount })}
         >
-          {overBalance ? 'Insufficient balance' : `Place ${fmtMoney(amount)} bet`}
+          {overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
         </button>
       </div>
     </div>
@@ -405,7 +399,7 @@ export function Toast({ message, onDone }) {
 
 // ── Bet card (My Bets screen) ────────────────────────────────
 export function BetCard({ bet }) {
-  const match = getMatch(bet.matchId);
+  const match = getMatch(bet.match_id || bet.matchId);
   if (!match) return null;
   const home = getTeam(match.home);
   const away = getTeam(match.away);
