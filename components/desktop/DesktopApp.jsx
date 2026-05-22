@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   FRIENDS, BETS, ACTIVITY, GROUPS, BRACKET, MATCHES,
   ME_ID, getFriend, getTeam, getMatch,
   fmtMoney, fmtCompact, fmtDay, fmtDate, fmtTimeIST,
 } from '@/lib/data';
 import { Flag, LiveDot } from '@/components';
+import SearchOverlay from '@/components/SearchOverlay';
 
 // ── Desktop icons ─────────────────────────────────────────────
 const DIcon = {
@@ -21,9 +22,37 @@ const DIcon = {
 };
 
 // ── Desktop Shell ─────────────────────────────────────────────
-function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, user }) {
+function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, user, onSelectMatch, onSelectUser }) {
   const me = user || getFriend(ME_ID);
   const myOpen = BETS.filter(b => b.user === ME_ID && b.status === 'open').length;
+  const [searchActive, setSearchActive] = useState(false);
+  const searchBarRef = useRef(null);
+
+  const handleSearchClose = useCallback(() => setSearchActive(false), []);
+
+  // Cmd+K shortcut
+  useEffect(() => {
+    const handleKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchActive(true);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // Click outside to close
+  useEffect(() => {
+    if (!searchActive) return;
+    const handleClick = (e) => {
+      if (searchBarRef.current && !searchBarRef.current.contains(e.target)) {
+        setSearchActive(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [searchActive]);
 
   const navItems = [
     { id: 'home',    label: 'Dashboard', icon: DIcon.home },
@@ -87,10 +116,20 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
             {sub && <div className="desk-topbar__sub">{sub}</div>}
           </div>
           {!hideSearch && (
-            <div className="desk-search">
-              {DIcon.search}
-              <span>Search teams, matches, friends…</span>
-              <kbd>⌘K</kbd>
+            <div className="desk-search-wrapper" ref={searchBarRef}>
+              <div className="desk-search" onClick={() => setSearchActive(true)}>
+                {DIcon.search}
+                <span>Search teams, matches, friends…</span>
+                <kbd>⌘K</kbd>
+              </div>
+              {searchActive && (
+                <SearchOverlay
+                  mode="dropdown"
+                  onSelectMatch={(match) => { setSearchActive(false); onSelectMatch?.(match); }}
+                  onSelectUser={(user) => { setSearchActive(false); onSelectUser?.(user); }}
+                  onClose={handleSearchClose}
+                />
+              )}
             </div>
           )}
           <div className="desk-topbar__actions">
@@ -717,7 +756,7 @@ function DBetsScreen() {
 }
 
 // ── Desktop App (root) ────────────────────────────────────────
-export default function DesktopApp({ tab, setTab, balance, openBet, matches, user }) {
+export default function DesktopApp({ tab, setTab, balance, openBet, matches, user, onSelectMatch, onSelectUser }) {
   const titles = {
     home:    { title: 'Dashboard',    sub: 'FIFA World Cup 2026 · Group stage underway' },
     matches: { title: 'Fixtures',     sub: 'All matches · group stage + knockout' },
@@ -733,6 +772,8 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches, use
       title={t.title} sub={t.sub}
       hideSearch={tab === 'bracket'}
       user={user}
+      onSelectMatch={onSelectMatch}
+      onSelectUser={onSelectUser}
     >
       {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} />}
       {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} />}
