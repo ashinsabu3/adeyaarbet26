@@ -1,0 +1,441 @@
+'use client';
+
+import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, fmtMoney, getMatch } from '@/lib/data';
+import { useState, useEffect } from 'react';
+
+// ── Icons ────────────────────────────────────────────────────
+export const Icon = {
+  home: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l9-7 9 7v9a2 2 0 01-2 2h-4v-7H9v7H5a2 2 0 01-2-2z"/>
+    </svg>
+  ),
+  ball: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/>
+    </svg>
+  ),
+  bracket: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h5l3 3M3 18h5l3-3M21 12h-4l-3-3M14 15l3-3"/>
+    </svg>
+  ),
+  trophy: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4h10v6a5 5 0 01-10 0V4z"/>
+      <path d="M7 7H4v3a3 3 0 003 3M17 7h3v3a3 3 0 01-3 3"/>
+      <path d="M9 21h6M12 18v3"/>
+    </svg>
+  ),
+  receipt: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2V3z"/>
+      <path d="M9 8h6M9 12h6M9 16h4"/>
+    </svg>
+  ),
+  close: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M6 6l12 12M18 6L6 18"/>
+    </svg>
+  ),
+};
+
+// ── Flag ─────────────────────────────────────────────────────
+export function Flag({ code, size = 'md' }) {
+  const team = getTeam(code);
+  const cls = size === 'xl' ? 'flag xl' : size === 'lg' ? 'flag lg' : size === 'sm' ? 'flag sm' : 'flag';
+  return <div className={cls}><span>{team.flag}</span></div>;
+}
+
+// ── Live dot ─────────────────────────────────────────────────
+export function LiveDot({ minute }) {
+  return (
+    <span className="live-dot">
+      <span>Live{minute ? ` · ${minute}'` : ''}</span>
+    </span>
+  );
+}
+
+// ── App Header ───────────────────────────────────────────────
+export function AppHeader({ balance, onTap }) {
+  return (
+    <div className="app-header">
+      <div className="app-header__brand">
+        <div className="brand-mark">A</div>
+        <div className="brand-name">AdeYaar <em>26</em></div>
+      </div>
+      <button className="balance-pill" onClick={onTap}>
+        <div className="balance-pill__icon">₹</div>
+        <span className="balance-pill__amt">{fmtCompact(balance)}</span>
+      </button>
+    </div>
+  );
+}
+
+// ── Tab bar ──────────────────────────────────────────────────
+export function TabBar({ active, onChange }) {
+  const tabs = [
+    { id: 'home',    label: 'Home',    icon: Icon.home },
+    { id: 'matches', label: 'Matches', icon: Icon.ball },
+    { id: 'bracket', label: 'Bracket', icon: Icon.bracket },
+    { id: 'leaders', label: 'Leaders', icon: Icon.trophy },
+    { id: 'bets',    label: 'My Bets', icon: Icon.receipt },
+  ];
+  return (
+    <div className="tabbar">
+      {tabs.map(t => (
+        <button
+          key={t.id}
+          className={'tabbar__btn ' + (active === t.id ? 'active' : '')}
+          onClick={() => onChange(t.id)}
+        >
+          {t.icon}
+          <span>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Section head ─────────────────────────────────────────────
+export function SectionHead({ title, more, onMore }) {
+  return (
+    <div className="section-head">
+      <div className="section-head__title display">{title}</div>
+      {more && (
+        <button className="section-head__more" onClick={onMore}>
+          {more} →
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Match card ───────────────────────────────────────────────
+export function MatchCard({ match, onBet }) {
+  const home = getTeam(match.home);
+  const away = getTeam(match.away);
+  const isLive = match.status === 'live';
+  const isFinished = match.status === 'finished';
+
+  return (
+    <div className="match-card">
+      <div className="match-card__head">
+        <span>{match.stage === 'GROUP' ? `Group · ${fmtDate(match.date)}` : `Round of 32 · ${fmtDate(match.date)}`}</span>
+        {isLive ? <LiveDot minute={match.minute} /> :
+         isFinished ? <span style={{ color: 'var(--ink-3)' }}>FT</span> :
+         <span style={{ fontFamily: 'var(--font-mono)' }}>{match.time}</span>}
+      </div>
+
+      <div className="match-card__teams">
+        <div className="match-card__team">
+          <Flag code={match.home} size="lg" />
+          <div className="match-card__team-name">{home.name}</div>
+        </div>
+
+        <div className="match-card__vs">
+          {(isLive || isFinished) ? (
+            <div className="match-card__score">{match.score[0]}–{match.score[1]}</div>
+          ) : (
+            <>
+              <div className="match-card__vs-time">{match.time}</div>
+              <div style={{ fontSize: 10 }}>{match.venue?.split(',')[1]?.trim()}</div>
+            </>
+          )}
+        </div>
+
+        <div className="match-card__team">
+          <Flag code={match.away} size="lg" />
+          <div className="match-card__team-name">{away.name}</div>
+        </div>
+      </div>
+
+      {!isFinished && (
+        <div className="match-card__odds">
+          {[
+            { key: 'home', label: home.name.length > 8 ? home.code : '1', val: match.odds.home },
+            { key: 'draw', label: 'X', val: match.odds.draw },
+            { key: 'away', label: away.name.length > 8 ? away.code : '2', val: match.odds.away },
+          ].map(o => {
+            const isFav = o.val === Math.min(match.odds.home, match.odds.draw, match.odds.away);
+            return (
+              <button
+                key={o.key}
+                className={'odds-btn ' + (isFav ? 'fav' : '')}
+                onClick={(e) => { e.stopPropagation(); onBet?.(match, o.key); }}
+              >
+                <span className="odds-btn__label">{o.label}</span>
+                <span className="odds-btn__val">{o.val.toFixed(2)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Hero match ───────────────────────────────────────────────
+export function HeroMatch({ match, onBet }) {
+  const home = getTeam(match.home);
+  const away = getTeam(match.away);
+  const isLive = match.status === 'live';
+
+  return (
+    <div className="hero">
+      <div className="row between center">
+        <div className="hero__stage">
+          {isLive ? '★ Live now' : 'Round of 32 · Featured'}
+        </div>
+        {isLive && <LiveDot minute={match.minute} />}
+      </div>
+
+      <div className="hero__matchup">
+        <div className="hero__team">
+          <Flag code={match.home} size="xl" />
+          <div className="hero__team-name">{home.name}</div>
+        </div>
+        <div className="col center" style={{ gap: 6 }}>
+          {isLive ? (
+            <div className="match-card__score" style={{ fontSize: 32 }}>
+              {match.score[0]}–{match.score[1]}
+            </div>
+          ) : (
+            <>
+              <div className="hero__vs">VS</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-3)' }}>
+                {match.time}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="hero__team">
+          <Flag code={match.away} size="xl" />
+          <div className="hero__team-name">{away.name}</div>
+        </div>
+      </div>
+
+      <div className="hero__cta-row">
+        <button className="btn primary lg" onClick={() => onBet(match, 'home')}>
+          Bet {home.code} · {match.odds.home.toFixed(2)}
+        </button>
+        <button className="btn lg" onClick={() => onBet(match, 'away')}>
+          Bet {away.code} · {match.odds.away.toFixed(2)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Place bet sheet ──────────────────────────────────────────
+export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance }) {
+  const presets = [100, 250, 500, 1000];
+  const [amount, setAmount] = useState(250);
+  const [side, setSide] = useState(pick || 'home');
+
+  const home = getTeam(match.home);
+  const away = getTeam(match.away);
+  const odds = match.odds[side];
+  const possibleWin = Math.round(amount * odds);
+  const profit = possibleWin - amount;
+  const sideName = side === 'home' ? home.name : side === 'away' ? away.name : 'Draw';
+  const overBalance = amount > balance;
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={e => e.stopPropagation()}>
+        <div className="sheet-handle" />
+
+        <div className="row between center" style={{ marginBottom: 14 }}>
+          <div className="eyebrow">Place your bet</div>
+          <button
+            onClick={onClose}
+            style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}
+          >
+            {Icon.close}
+          </button>
+        </div>
+
+        {/* Match preview */}
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="row between" style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 10 }}>
+            <span>Round of 32 · {fmtDay(match.date)} {match.time}</span>
+            <span className="mono">{match.id}</span>
+          </div>
+          <div className="row between center" style={{ gap: 10 }}>
+            <div className="row center" style={{ gap: 8 }}>
+              <Flag code={match.home} />
+              <span style={{ fontWeight: 600 }}>{home.name}</span>
+            </div>
+            <span className="mono" style={{ color: 'var(--ink-3)' }}>vs</span>
+            <div className="row center" style={{ gap: 8 }}>
+              <span style={{ fontWeight: 600 }}>{away.name}</span>
+              <Flag code={match.away} />
+            </div>
+          </div>
+        </div>
+
+        {/* Side picker */}
+        <div className="eyebrow" style={{ marginBottom: 8 }}>Your pick</div>
+        <div className="match-card__odds" style={{ marginBottom: 18 }}>
+          {[
+            { k: 'home', l: home.name },
+            { k: 'draw', l: 'Draw' },
+            { k: 'away', l: away.name },
+          ].map(o => (
+            <button
+              key={o.k}
+              className={'odds-btn ' + (side === o.k ? 'fav' : '')}
+              style={side === o.k ? { borderColor: 'var(--gold)', background: 'var(--gold-soft)' } : {}}
+              onClick={() => setSide(o.k)}
+            >
+              <span className="odds-btn__label">
+                {o.l.length > 8 ? (o.k === 'home' ? home.code : o.k === 'away' ? away.code : 'X') : o.l}
+              </span>
+              <span className="odds-btn__val">{match.odds[o.k].toFixed(2)}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Amount */}
+        <div className="row between" style={{ marginBottom: 10 }}>
+          <div className="eyebrow">Amount</div>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>Bal {fmtMoney(balance)}</div>
+        </div>
+
+        <div style={{
+          textAlign: 'center', padding: '14px 0',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 36,
+          color: overBalance ? 'var(--loss)' : 'var(--ink)',
+        }}>
+          ₹{amount.toLocaleString('en-IN')}
+        </div>
+
+        <input
+          type="range" className="slider"
+          min={50} max={Math.max(5000, balance)} step={50}
+          value={amount}
+          onChange={e => setAmount(Number(e.target.value))}
+          style={{ marginBottom: 14 }}
+        />
+
+        <div className="amount-presets" style={{ marginBottom: 18 }}>
+          {presets.map(p => (
+            <button key={p} className={amount === p ? 'active' : ''} onClick={() => setAmount(p)}>
+              ₹{p}
+            </button>
+          ))}
+        </div>
+
+        {/* Summary */}
+        <div style={{
+          padding: '14px 16px', borderRadius: 'var(--radius)',
+          background: 'var(--surface-2)', marginBottom: 16,
+          border: '1px solid var(--line)',
+        }}>
+          <div className="row between" style={{ marginBottom: 6 }}>
+            <span className="muted" style={{ fontSize: 12 }}>Pick</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{sideName} @ {odds.toFixed(2)}</span>
+          </div>
+          <div className="row between" style={{ marginBottom: 6 }}>
+            <span className="muted" style={{ fontSize: 12 }}>Stake</span>
+            <span className="mono" style={{ fontWeight: 700 }}>{fmtMoney(amount)}</span>
+          </div>
+          <div className="row between" style={{ paddingTop: 10, marginTop: 6, borderTop: '1px solid var(--line)' }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>Possible win</span>
+            <div style={{ textAlign: 'right' }}>
+              <div className="mono gold" style={{ fontWeight: 800, fontSize: 18 }}>{fmtMoney(possibleWin)}</div>
+              <div className="mono dim" style={{ fontSize: 11 }}>+{fmtMoney(profit)} profit</div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          className="btn primary block lg"
+          disabled={overBalance}
+          onClick={() => onConfirm({ matchId: match.id, pick: side, amount, oddsAt: odds })}
+        >
+          {overBalance ? 'Insufficient balance' : `Place ₹${amount.toLocaleString('en-IN')} bet`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Toast ────────────────────────────────────────────────────
+export function Toast({ message, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2400);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div className="toast">
+      <span>✓</span>
+      <span>{message}</span>
+    </div>
+  );
+}
+
+// ── Bet card (My Bets screen) ────────────────────────────────
+export function BetCard({ bet }) {
+  const match = getMatch(bet.matchId);
+  if (!match) return null;
+  const home = getTeam(match.home);
+  const away = getTeam(match.away);
+  const pickedTeam = bet.pick === 'home' ? home : bet.pick === 'away' ? away : null;
+  const possibleWin = Math.round(bet.amount * bet.oddsAt);
+  const isLive = match.status === 'live';
+
+  return (
+    <div className="bet-card">
+      <div className="bet-card__head">
+        <span>{fmtDay(match.date)} · {match.time}</span>
+        <span className={'bet-card__status ' + bet.status}>{bet.status}</span>
+      </div>
+
+      <div className="row between center">
+        <div className="row center" style={{ gap: 8 }}>
+          <Flag code={match.home} size="sm" />
+          <span style={{ fontWeight: 500, fontSize: 13 }}>{home.code}</span>
+          <span className="mono" style={{ color: 'var(--ink-3)', fontSize: 11 }}>
+            {match.score ? `${match.score[0]}-${match.score[1]}` : 'v'}
+          </span>
+          <span style={{ fontWeight: 500, fontSize: 13 }}>{away.code}</span>
+          <Flag code={match.away} size="sm" />
+        </div>
+        {isLive && <LiveDot minute={match.minute} />}
+      </div>
+
+      <div className="bet-card__pick">
+        <span className="eyebrow">Pick</span>
+        <span style={{ fontWeight: 600, fontSize: 13 }}>
+          {pickedTeam ? pickedTeam.name : 'Draw'}
+        </span>
+        <span className="mono dim" style={{ fontSize: 12 }}>@ {bet.oddsAt.toFixed(2)}</span>
+      </div>
+
+      <div className="bet-card__amounts">
+        <div>
+          <span>Stake</span>
+          <span>{fmtMoney(bet.amount)}</span>
+        </div>
+        <div>
+          <span>{bet.status === 'won' ? 'Payout' : bet.status === 'lost' ? 'Lost' : 'To win'}</span>
+          <span className={bet.status === 'won' ? 'win' : bet.status === 'lost' ? 'loss' : 'gold'}>
+            {bet.status === 'lost' ? '−' : ''}
+            {fmtMoney(bet.status === 'won' ? bet.payout : possibleWin)}
+          </span>
+        </div>
+        <div>
+          <span>Profit</span>
+          <span className={bet.status === 'won' ? 'win' : bet.status === 'lost' ? 'loss' : ''}>
+            {bet.status === 'lost' ? '−' + fmtMoney(bet.amount) :
+             bet.status === 'won' ? '+' + fmtMoney(bet.payout - bet.amount) :
+             '+' + fmtMoney(possibleWin - bet.amount)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
