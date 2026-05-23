@@ -635,7 +635,7 @@ function DLeaderboardScreen({ user }) {
 }
 
 // ── Desktop My Bets ───────────────────────────────────────────
-function DBetsScreen({ user }) {
+function DBetsScreen({ user, onCancelBet }) {
   const [tab, setTab] = useState('pending');
   const [mine, setMine] = useState([]);
 
@@ -742,7 +742,20 @@ function DBetsScreen({ user }) {
                 {b.status === 'lost' ? '—' : ret != null ? fmtMoney(ret) : 'Pending'}
               </div>
               <div className="desk-bet__status">
-                <span className={'bet-card__status ' + b.status}>{b.status}</span>
+                {b.status === 'pending' && m.status === 'upcoming' && onCancelBet ? (
+                  <button
+                    onClick={() => onCancelBet(b.match_id)}
+                    style={{
+                      background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.25)',
+                      borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                      color: 'var(--loss)', cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                ) : (
+                  <span className={'bet-card__status ' + b.status}>{b.status}</span>
+                )}
               </div>
             </div>
           );
@@ -753,7 +766,7 @@ function DBetsScreen({ user }) {
 }
 
 // ── Desktop App (root) ────────────────────────────────────────
-export default function DesktopApp({ tab, setTab, balance, openBet, matches, user, onLogout, bets = [] }) {
+export default function DesktopApp({ tab, setTab, balance, openBet, matches, user, onLogout, bets = [], onCancelBet }) {
   const titles = {
     home:    { title: 'Dashboard',    sub: 'FIFA World Cup 2026 · Group stage underway' },
     matches: { title: 'Fixtures',     sub: 'All matches · group stage + knockout' },
@@ -773,7 +786,7 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches, use
       {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} bets={bets} />}
       {tab === 'bracket' && <DBracketScreen matches={matches} />}
       {tab === 'leaders' && <DLeaderboardScreen user={user} />}
-      {tab === 'bets'    && <DBetsScreen user={user} />}
+      {tab === 'bets'    && <DBetsScreen user={user} onCancelBet={onCancelBet} />}
     </DesktopShell>
   );
 }

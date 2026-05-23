@@ -440,13 +440,15 @@ export function Toast({ message, onDone }) {
 }
 
 // ── Bet card (My Bets screen) ────────────────────────────────
-export function BetCard({ bet }) {
+export function BetCard({ bet, onCancelBet }) {
   const match = getMatch(bet.match_id || bet.matchId);
   if (!match) return null;
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const pickedTeam = bet.pick === 'home' ? home : bet.pick === 'away' ? away : null;
   const isLive = match.status === 'live';
+  const isFinished = match.status === 'finished';
+  const canCancel = bet.status === 'pending' && !isLive && !isFinished && onCancelBet;
 
   return (
     <div className="bet-card">
@@ -490,6 +492,20 @@ export function BetCard({ bet }) {
           </span>
         </div>
       </div>
+
+      {canCancel && (
+        <button
+          onClick={() => onCancelBet(bet.match_id || bet.matchId)}
+          style={{
+            width: '100%', marginTop: 10, padding: '9px 0',
+            background: 'rgba(231, 76, 60, 0.08)', border: '1px solid rgba(231, 76, 60, 0.25)',
+            borderRadius: 8, color: 'var(--loss)', fontSize: 12, fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Cancel bet · Refund {fmtMoney(bet.amount)}
+        </button>
+      )}
     </div>
   );
 }

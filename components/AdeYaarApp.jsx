@@ -184,7 +184,7 @@ export default function AdeYaarApp() {
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={balance} openBet={openBet}
-          matches={matches} user={user} onLogout={handleLogout} bets={bets}
+          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet}
         />
         {betSheet && (
           <PlaceBetSheet
@@ -213,7 +213,7 @@ export default function AdeYaarApp() {
             {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
-            {tab === 'bets'    && <BetsScreen bets={bets} />}
+            {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} />}
           </div>
 
           <TabBar active={tab} onChange={setTab} />

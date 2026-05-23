@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { fmtMoney } from '@/lib/currency';
 import { BetCard } from '@/components';
 
-export default function BetsScreen({ bets = [] }) {
+export default function BetsScreen({ bets = [], onCancelBet }) {
   const [tab, setTab] = useState('pending');
 
   const filtered = useMemo(() => {
@@ -71,7 +71,7 @@ export default function BetsScreen({ bets = [] }) {
             {bets.length === 0 ? 'Place your first bet!' : `No ${tab} bets yet`}
           </div>
         )}
-        {filtered.map(b => <BetCard key={b.id} bet={b} />)}
+        {filtered.map(b => <BetCard key={b.id} bet={b} onCancelBet={onCancelBet} />)}
       </div>
     </div>
   );
