@@ -160,7 +160,7 @@ BEGIN
     SELECT id, user_id, amount FROM public.bets
       WHERE match_id = p_match_id AND status = 'pending' AND pick = p_winner
   LOOP
-    v_payout := (v_bet.amount::numeric / v_winning_pool * v_total_pool)::integer;
+    v_payout := FLOOR(v_bet.amount::numeric / v_winning_pool * v_total_pool)::integer;
     UPDATE public.bets SET status = 'won', payout = v_payout WHERE id = v_bet.id;
     v_payouts_made := v_payouts_made + 1;
 

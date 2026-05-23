@@ -192,26 +192,28 @@ export function MatchCard({ match, onBet, myBets = [], onCancelBet }) {
         </div>
       )}
 
-      <div className={`match-card__footer ${hasBet ? 'has-bet' : 'no-bet'}`}>
-        {hasBet ? (
-          <>
-            <span>Your bet: {fmtMoney(myTotal)} on {pickLabel}</span>
-            {!isLive && !isFinished && onCancelBet && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onCancelBet(match.id); }}
-                style={{
-                  background: 'none', border: 'none', color: 'var(--loss)',
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline',
-                }}
-              >
-                Cancel
-              </button>
-            )}
-          </>
-        ) : (
-          <span>No bet placed</span>
-        )}
-      </div>
+      {!isFinished && (
+        <div className={`match-card__footer ${hasBet ? 'has-bet' : 'no-bet'}`}>
+          {hasBet ? (
+            <>
+              <span>Your bet: {fmtMoney(myTotal)} on {pickLabel}</span>
+              {!isLive && onCancelBet && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onCancelBet(match.id); }}
+                  style={{
+                    background: 'none', border: 'none', color: 'var(--loss)',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline',
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+            </>
+          ) : (
+            <span>No bet placed</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -431,9 +433,10 @@ export function Toast({ message, onDone }) {
     const t = setTimeout(onDone, 2400);
     return () => clearTimeout(t);
   }, [onDone]);
+  const isError = message?.startsWith('Error');
   return (
-    <div className="toast">
-      <span>✓</span>
+    <div className="toast" style={isError ? { borderColor: 'var(--loss)' } : undefined}>
+      <span>{isError ? '✗' : '✓'}</span>
       <span>{message}</span>
     </div>
   );

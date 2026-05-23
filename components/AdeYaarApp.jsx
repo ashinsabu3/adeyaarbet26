@@ -46,6 +46,7 @@ export default function AdeYaarApp() {
   const [toast, setToast]       = useState(null);
   const [balance, setBalance]   = useState(STARTING_BALANCE);
   const [bets, setBets]         = useState([]);
+  const [cancelling, setCancelling] = useState(null);
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [poolInfo, setPoolInfo] = useState(null);
@@ -111,8 +112,9 @@ export default function AdeYaarApp() {
   const closeBet = useCallback(() => setBetSheet(null), []);
 
   const cancelBet = useCallback(async (matchId) => {
-    if (!user) return;
+    if (!user || cancelling) return;
     if (!confirm('Cancel your bet on this match? Your stake will be refunded.')) return;
+    setCancelling(matchId);
     try {
       const res = await fetch('/api/bets/cancel', {
         method: 'POST',
@@ -130,8 +132,10 @@ export default function AdeYaarApp() {
       setToast(`Bet cancelled · ${fmtMoney(data.refunded)} refunded`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
+    } finally {
+      setCancelling(null);
     }
-  }, [user]);
+  }, [user, cancelling]);
 
   const handleLogout = useCallback(async () => {
     localStorage.removeItem('adeyaar_user');

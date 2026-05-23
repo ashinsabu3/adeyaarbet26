@@ -207,19 +207,21 @@ function DeskFix({ match, onBet, myBets = [] }) {
 }
 
 // ── Desktop Home ──────────────────────────────────────────────
-function DHomeScreen({ matches, balance, onBet, onNav, user }) {
+function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [] }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 6);
   const featured = live[0] || upcoming[0];
 
-  const [myBets, setMyBets] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [activity, setActivity] = useState([]);
 
   useEffect(() => {
     if (!user) return;
-    fetch(`/api/bets?user_id=${user.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setMyBets(d); }).catch(() => {});
     fetch('/api/leaderboard').then(r => r.json()).then(d => { if (Array.isArray(d)) setLeaderboard(d); }).catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     fetch('/api/activity?limit=6').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setActivity(d.map(a => ({
         id: a.id,
@@ -228,11 +230,11 @@ function DHomeScreen({ matches, balance, onBet, onNav, user }) {
         createdAt: a.created_at,
       })));
     }).catch(() => {});
-  }, [user]);
+  }, [user, bets]);
 
-  const myOpenBets = myBets.filter(b => b.status === 'pending');
+  const myOpenBets = bets.filter(b => b.status === 'pending');
   const totalStake = myOpenBets.reduce((s, b) => s + b.amount, 0);
-  const myWon = myBets.filter(b => b.status === 'won')
+  const myWon = bets.filter(b => b.status === 'won')
     .reduce((s, b) => s + ((b.payout || 0) - b.amount), 0);
 
   const sorted = leaderboard.slice(0, 5);
@@ -655,15 +657,10 @@ function DLeaderboardScreen({ user }) {
 }
 
 // ── Desktop My Bets ───────────────────────────────────────────
-function DBetsScreen({ user, onCancelBet }) {
+function DBetsScreen({ user, onCancelBet, bets = [] }) {
   const [tab, setTab] = useState('pending');
-  const [mine, setMine] = useState([]);
 
-  useEffect(() => {
-    if (!user) return;
-    fetch(`/api/bets?user_id=${user.id}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setMine(d); }).catch(() => {});
-  }, [user]);
-
+  const mine = bets;
   const filtered = tab === 'all' ? mine : mine.filter(b => b.status === tab);
 
   const totalOpen = mine.filter(b => b.status === 'pending').reduce((s, b) => s + b.amount, 0);
@@ -802,11 +799,11 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches, use
       title={t.title} sub={t.sub}
       hideSearch={tab === 'bracket'} user={user} onLogout={onLogout}
     >
-      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} />}
+      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} bets={bets} />}
       {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} bets={bets} />}
       {tab === 'bracket' && <DBracketScreen matches={matches} />}
       {tab === 'leaders' && <DLeaderboardScreen user={user} />}
-      {tab === 'bets'    && <DBetsScreen user={user} onCancelBet={onCancelBet} />}
+      {tab === 'bets'    && <DBetsScreen user={user} onCancelBet={onCancelBet} bets={bets} />}
     </DesktopShell>
   );
 }
