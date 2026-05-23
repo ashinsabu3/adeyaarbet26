@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { fmtDay, fmtDate } from '@/lib/data';
 import { MatchCard } from '@/components';
 
-export default function MatchesScreen({ matches = [], onBet, bets = [] }) {
+export default function MatchesScreen({ matches = [], onBet, bets = [], onCancelBet }) {
   const [filter, setFilter] = useState('all');
 
   const filters = [
@@ -53,8 +53,8 @@ export default function MatchesScreen({ matches = [], onBet, bets = [] }) {
             <div className="date-group__date">{fmtDate(date)}</div>
           </div>
           {byDate[date].map(m => {
-            const myBets = bets.filter(b => (b.match_id || b.matchId) === m.id);
-            return <MatchCard key={m.id} match={m} onBet={onBet} myBets={myBets} />;
+            const myBets = bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending');
+            return <MatchCard key={m.id} match={m} onBet={onBet} myBets={myBets} onCancelBet={onCancelBet} />;
           })}
         </div>
       ))}

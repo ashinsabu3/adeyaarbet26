@@ -56,38 +56,30 @@ export default function AdeYaarApp() {
       window.location.href = '/login';
       return;
     }
-    // Resolve profile from DB for balance — if profile gone, force logout
     fetch(`/api/profile?id=${user.id}`)
       .then(r => {
         if (r.status === 404) {
           localStorage.removeItem('adeyaar_user');
           import('@/lib/supabase-browser').then(m => m.default?.auth.signOut());
           window.location.href = '/login';
-          return null;
         }
-        return r.ok ? r.json() : null;
-      })
-      .then(profile => {
-        if (profile) setBalance(profile.balance);
       })
       .catch(() => {});
   }, [user, loading]);
 
-  // Load balance and bets from DB
-  useEffect(() => {
+  const refreshData = useCallback(() => {
     if (!user) return;
     fetch(`/api/bets?user_id=${user.id}`)
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setBets(data); })
       .catch(() => {});
-    fetch(`/api/leaderboard`)
-      .then(r => r.json())
-      .then(data => {
-        const me = data.find(p => p.id === user.id);
-        if (me) setBalance(me.balance);
-      })
+    fetch(`/api/profile?id=${user.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setBalance(data.balance); })
       .catch(() => {});
   }, [user]);
+
+  useEffect(() => { refreshData(); }, [refreshData]);
 
   useEffect(() => {
     fetch('/api/fifa/matches')
@@ -117,6 +109,30 @@ export default function AdeYaarApp() {
 
   const openBet  = useCallback((match, pick) => setBetSheet({ match, pick }), []);
   const closeBet = useCallback(() => setBetSheet(null), []);
+
+  const cancelBet = useCallback(async (matchId) => {
+    if (!user) return;
+    if (!confirm('Cancel your bet on this match? Your stake will be refunded.')) return;
+    try {
+      const res = await fetch('/api/bets/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, matchId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBalance(data.balance);
+      setBets(prev => prev.map(b =>
+        b.match_id === matchId && b.status === 'pending'
+          ? { ...b, status: 'cancelled' }
+          : b
+      ));
+      setToast(`Bet cancelled · ${fmtMoney(data.refunded)} refunded`);
+    } catch (err) {
+      setToast(`Error: ${err.message}`);
+    }
+  }, [user]);
+
   const handleLogout = useCallback(async () => {
     localStorage.removeItem('adeyaar_user');
     const { default: supabaseBrowser } = await import('@/lib/supabase-browser');
@@ -140,16 +156,13 @@ export default function AdeYaarApp() {
       const data = await res.json();
 
       if (res.status === 503) {
-        // No DB — update state locally
         setBalance(b => b - amount);
         setBets(prev => [{ id: Date.now(), match_id: matchId, pick, amount, status: 'pending', created_at: new Date().toISOString() }, ...prev]);
       } else if (!res.ok) {
         throw new Error(data.error || 'Failed to place bet');
       } else {
         setBalance(data.balance);
-        const betsRes = await fetch(`/api/bets?user_id=${user.id}`);
-        const betsData = await betsRes.json();
-        if (Array.isArray(betsData)) setBets(betsData);
+        refreshData();
       }
 
       setBetSheet(null);
@@ -161,7 +174,7 @@ export default function AdeYaarApp() {
       setToast(`Error: ${err.message}`);
       setBetSheet(null);
     }
-  }, [matches, user]);
+  }, [matches, user, refreshData]);
 
   if (loading || !user) return null;
 
@@ -179,6 +192,7 @@ export default function AdeYaarApp() {
             pick={betSheet.pick}
             balance={balance}
             poolInfo={poolInfo}
+            existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
             onClose={closeBet}
             onConfirm={confirmBet}
           />
@@ -195,8 +209,8 @@ export default function AdeYaarApp() {
           <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onNav={setTab} user={user} />}
-            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} />}
+            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
             {tab === 'bets'    && <BetsScreen bets={bets} />}
@@ -210,6 +224,7 @@ export default function AdeYaarApp() {
               pick={betSheet.pick}
               balance={balance}
               poolInfo={poolInfo}
+              existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
               onClose={closeBet}
               onConfirm={confirmBet}
             />

@@ -131,7 +131,7 @@ export function SectionHead({ title, more, onMore }) {
 }
 
 // ── Match card ───────────────────────────────────────────────
-export function MatchCard({ match, onBet, myBets = [] }) {
+export function MatchCard({ match, onBet, myBets = [], onCancelBet }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const isLive = match.status === 'live';
@@ -196,7 +196,17 @@ export function MatchCard({ match, onBet, myBets = [] }) {
         {hasBet ? (
           <>
             <span>Your bet: {fmtMoney(myTotal)} on {pickLabel}</span>
-            {myBets.length > 1 && <span>({myBets.length} bets)</span>}
+            {!isLive && !isFinished && onCancelBet && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onCancelBet(match.id); }}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--loss)',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline',
+                }}
+              >
+                Cancel
+              </button>
+            )}
           </>
         ) : (
           <span>No bet placed</span>
@@ -259,7 +269,7 @@ export function HeroMatch({ match, onBet }) {
 }
 
 // ── Place bet sheet ──────────────────────────────────────────
-export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolInfo }) {
+export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolInfo, existingBets = [] }) {
   const presets = [100, 250, 500, 1000];
   const [amount, setAmount] = useState(250);
   const [side, setSide] = useState(pick || 'home');
@@ -268,6 +278,10 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
   const away = getTeam(match.away);
   const sideName = side === 'home' ? home.name : side === 'away' ? away.name : 'Draw';
   const overBalance = amount > balance;
+
+  const existingPick = existingBets.length > 0 ? existingBets[0].pick : null;
+  const existingTotal = existingBets.reduce((s, b) => s + b.amount, 0);
+  const isSwitching = existingPick && existingPick !== side;
 
   // Compute potential payout from pool info
   const pool = poolInfo || { total: 0, bettorCount: 0, bySide: { home: 0, away: 0, draw: 0 } };
@@ -336,6 +350,18 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
             </button>
           ))}
         </div>
+
+        {/* Switch warning */}
+        {isSwitching && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 8, marginBottom: 14,
+            background: 'rgba(231, 76, 60, 0.08)', border: '1px solid rgba(231, 76, 60, 0.2)',
+            fontSize: 12, color: 'var(--loss)', lineHeight: 1.4,
+          }}>
+            You have {fmtMoney(existingTotal)} on <b>{existingPick === 'home' ? home.name : existingPick === 'away' ? away.name : 'Draw'}</b>.
+            Switching to <b>{sideName}</b> will cancel your previous bet and refund it.
+          </div>
+        )}
 
         {/* Amount */}
         <div className="row between" style={{ marginBottom: 10 }}>

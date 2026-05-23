@@ -60,14 +60,10 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
           ))}
         </nav>
 
-        {/* balance/funds hidden until feature is ready
         <div className="desk-balance">
           <div className="desk-balance__label">Wallet · Yaaron Cup</div>
           <div className="desk-balance__amt">{fmtMoney(balance)}</div>
-          <div className="desk-balance__sub">+₹3,150 this week · #1 of 8</div>
-          <button className="desk-balance__cta">Add funds</button>
         </div>
-        */}
 
         <div className="desk-user" style={{ position: 'relative' }}>
           <div className="desk-user__avatar">{me?.display_name?.[0] || me?.username?.[0] || '?'}</div>
@@ -115,6 +111,9 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
             </div>
           )}
           <div className="desk-topbar__actions">
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color: 'var(--gold)', marginRight: 12 }}>
+              {fmtMoney(balance)}
+            </div>
             <button className="desk-icon-btn" onClick={onLogout} title="Log out">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
             </button>
@@ -416,7 +415,7 @@ function DMatchesScreen({ matches, onBet, bets = [] }) {
           </div>
           <div className="desk-grid fixtures" style={{ marginTop: 0 }}>
             {byDate[date].map(m => {
-              const myBets = bets.filter(b => (b.match_id || b.matchId) === m.id);
+              const myBets = bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending');
               return <DeskFix key={m.id} match={m} onBet={onBet} myBets={myBets} />;
             })}
           </div>

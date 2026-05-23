@@ -25,13 +25,13 @@ export async function GET(request) {
     });
   }
 
-  let query = supabase.from('profiles').select('id, username, display_name, balance');
+  let query = supabase.from('profiles').select('id, username, display_name');
   if (id) {
     query = query.eq('id', id);
   } else {
     query = query.eq('username', username);
   }
-  const { data, error } = await query.single();
+  const { data: profile, error } = await query.single();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -40,5 +40,19 @@ export async function GET(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  // Compute balance from bets (ledger model)
+  const { data: bets } = await supabase
+    .from('bets')
+    .select('amount, status, payout')
+    .eq('user_id', profile.id);
+
+  let balance = STARTING_BALANCE;
+  if (bets) {
+    for (const b of bets) {
+      if (b.status !== 'cancelled') balance -= b.amount;
+      if (b.status === 'won') balance += (b.payout || 0);
+    }
+  }
+
+  return NextResponse.json({ ...profile, balance });
 }

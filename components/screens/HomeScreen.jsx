@@ -15,7 +15,7 @@ function relativeTime(iso) {
   return `${Math.floor(hours / 24)}d`;
 }
 
-export default function HomeScreen({ matches = [], balance, bets = [], onBet, onNav, user }) {
+export default function HomeScreen({ matches = [], balance, bets = [], onBet, onCancelBet, onNav, user }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 3);
   const featured = live[0] || upcoming[0];
@@ -73,7 +73,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
         <>
           <SectionHead title="Live now" more="All matches" onMore={() => onNav('matches')} />
           <div className="date-group" style={{ marginBottom: 8 }}>
-            {live.map(m => <MatchCard key={m.id} match={m} onBet={onBet} />)}
+            {live.map(m => <MatchCard key={m.id} match={m} onBet={onBet} myBets={bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending')} onCancelBet={onCancelBet} />)}
           </div>
         </>
       )}
@@ -81,7 +81,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
       {/* Upcoming */}
       <SectionHead title="Up next" more="Fixtures" onMore={() => onNav('matches')} />
       <div className="date-group" style={{ marginBottom: 8 }}>
-        {upcoming.map(m => <MatchCard key={m.id} match={m} onBet={onBet} />)}
+        {upcoming.map(m => <MatchCard key={m.id} match={m} onBet={onBet} myBets={bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending')} onCancelBet={onCancelBet} />)}
       </div>
 
       {/* Friend activity */}
