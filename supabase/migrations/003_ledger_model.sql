@@ -3,6 +3,11 @@
 -- "active" = status IN ('pending', 'won', 'lost')  (i.e. NOT cancelled)
 -- This makes corruption impossible — there's no mutable balance to desync.
 
+-- Extend activity type constraint to include cancellations
+ALTER TABLE public.activity DROP CONSTRAINT IF EXISTS activity_type_check;
+ALTER TABLE public.activity ADD CONSTRAINT activity_type_check
+  CHECK (type IN ('bet_placed', 'bet_won', 'bet_lost', 'bet_cancelled', 'joined'));
+
 -- Helper: compute a user's balance from their bet history
 CREATE OR REPLACE FUNCTION public.compute_balance(p_user_id uuid)
 RETURNS integer AS $$
@@ -96,6 +101,11 @@ BEGIN
   IF v_cancelled = 0 THEN
     RAISE EXCEPTION 'No pending bets to cancel';
   END IF;
+
+  INSERT INTO public.activity (user_id, type, payload)
+    VALUES (p_user_id, 'bet_cancelled', jsonb_build_object(
+      'match_id', p_match_id, 'refunded', v_refunded, 'count', v_cancelled
+    ));
 
   RETURN json_build_object(
     'cancelled', v_cancelled,

@@ -9,6 +9,26 @@ import {
 import { fmtMoney, STARTING_BALANCE, CURRENCY_SYMBOL } from '@/lib/currency';
 import { Flag, LiveDot } from '@/components';
 
+function formatDeskActivity(a) {
+  const match = a.payload?.match_id ? getMatch(a.payload.match_id) : null;
+  const matchLabel = match
+    ? `${getTeam(match.home).name} vs ${getTeam(match.away).name}`
+    : '';
+  if (a.type === 'bet_placed' && a.payload) {
+    const pickTeam = match
+      ? (a.payload.pick === 'home' ? getTeam(match.home).name : a.payload.pick === 'away' ? getTeam(match.away).name : 'Draw')
+      : a.payload.pick;
+    return `bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${pickTeam} · ${matchLabel}`;
+  }
+  if (a.type === 'bet_cancelled' && a.payload) {
+    return `cancelled · refund ${CURRENCY_SYMBOL}${a.payload.refunded} · ${matchLabel}`;
+  }
+  if (a.type === 'bet_won' && a.payload) {
+    return `won ${CURRENCY_SYMBOL}${a.payload.payout} · ${matchLabel}`;
+  }
+  return a.type;
+}
+
 // ── Desktop icons ─────────────────────────────────────────────
 const DIcon = {
   home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7v9a2 2 0 01-2 2h-4v-7H9v7H5a2 2 0 01-2-2z"/></svg>,
@@ -204,7 +224,7 @@ function DHomeScreen({ matches, balance, onBet, onNav, user }) {
       if (Array.isArray(d)) setActivity(d.map(a => ({
         id: a.id,
         username: a.profiles?.display_name || a.profiles?.username || 'Unknown',
-        text: a.type === 'bet_placed' && a.payload ? `bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${a.payload.pick}` : a.type === 'bet_won' && a.payload ? `won ${CURRENCY_SYMBOL}${a.payload.payout}!` : a.type,
+        text: formatDeskActivity(a),
         createdAt: a.created_at,
       })));
     }).catch(() => {});

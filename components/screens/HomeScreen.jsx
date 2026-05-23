@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { fmtCompact } from '@/lib/data';
+import { fmtCompact, getMatch, getTeam, fmtDate } from '@/lib/data';
 import { CURRENCY_SYMBOL } from '@/lib/currency';
 import { HeroMatch, MatchCard, SectionHead } from '@/components';
 
@@ -110,11 +110,22 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
 }
 
 function formatActivityText(a) {
+  const match = a.payload?.match_id ? getMatch(a.payload.match_id) : null;
+  const matchLabel = match
+    ? `${getTeam(match.home).name} vs ${getTeam(match.away).name}`
+    : a.payload?.match_id || '';
+
   if (a.type === 'bet_placed' && a.payload) {
-    return `bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${a.payload.pick}`;
+    const pickTeam = match
+      ? (a.payload.pick === 'home' ? getTeam(match.home).name : a.payload.pick === 'away' ? getTeam(match.away).name : 'Draw')
+      : a.payload.pick;
+    return `bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${pickTeam} · ${matchLabel}`;
+  }
+  if (a.type === 'bet_cancelled' && a.payload) {
+    return `cancelled bet · refund ${CURRENCY_SYMBOL}${a.payload.refunded} · ${matchLabel}`;
   }
   if (a.type === 'bet_won' && a.payload) {
-    return `won ${CURRENCY_SYMBOL}${a.payload.payout}!`;
+    return `won ${CURRENCY_SYMBOL}${a.payload.payout} · ${matchLabel}`;
   }
   return a.type;
 }
