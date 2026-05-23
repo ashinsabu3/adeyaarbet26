@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MATCHES, getMatch, getTeam } from '@/lib/data';
 import { STARTING_BALANCE, fmtMoney } from '@/lib/currency';
+import { useUser } from '@/lib/hooks';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
@@ -37,16 +38,9 @@ function mergeWithFifa(staticMatch, fifaResults) {
   return { ...staticMatch, venue, fifaId: fifa.IdMatch, status, score, minute };
 }
 
-function getUserFromStorage() {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem('adeyaar_user');
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
 export default function AdeYaarApp() {
   const theme = 'midnight';
+  const { user, loading } = useUser();
   const [tab, setTab]           = useState('home');
   const [betSheet, setBetSheet] = useState(null);
   const [toast, setToast]       = useState(null);
@@ -55,27 +49,29 @@ export default function AdeYaarApp() {
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [poolInfo, setPoolInfo] = useState(null);
-  const [user, setUser]         = useState(null);
 
   useEffect(() => {
-    const u = getUserFromStorage();
-    if (!u) {
+    if (loading) return;
+    if (!user) {
       window.location.href = '/login';
       return;
     }
-    // Resolve username to UUID profile from DB
-    fetch(`/api/profile?username=${u.username || u.id}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(profile => {
-        if (profile) {
-          setUser(profile);
-          setBalance(profile.balance);
-        } else {
-          setUser(u);
+    // Resolve profile from DB for balance — if profile gone, force logout
+    fetch(`/api/profile?id=${user.id}`)
+      .then(r => {
+        if (r.status === 404) {
+          localStorage.removeItem('adeyaar_user');
+          import('@/lib/supabase-browser').then(m => m.default?.auth.signOut());
+          window.location.href = '/login';
+          return null;
         }
+        return r.ok ? r.json() : null;
       })
-      .catch(() => setUser(u));
-  }, []);
+      .then(profile => {
+        if (profile) setBalance(profile.balance);
+      })
+      .catch(() => {});
+  }, [user, loading]);
 
   // Load balance and bets from DB
   useEffect(() => {
@@ -121,6 +117,12 @@ export default function AdeYaarApp() {
 
   const openBet  = useCallback((match, pick) => setBetSheet({ match, pick }), []);
   const closeBet = useCallback(() => setBetSheet(null), []);
+  const handleLogout = useCallback(async () => {
+    localStorage.removeItem('adeyaar_user');
+    const { default: supabaseBrowser } = await import('@/lib/supabase-browser');
+    if (supabaseBrowser) await supabaseBrowser.auth.signOut();
+    window.location.href = '/login';
+  }, []);
 
   const confirmBet = useCallback(async ({ matchId, pick, amount }) => {
     if (!user) return;
@@ -161,7 +163,7 @@ export default function AdeYaarApp() {
     }
   }, [matches, user]);
 
-  if (!user) return null;
+  if (loading || !user) return null;
 
   if (isDesktop) {
     return (
@@ -169,7 +171,7 @@ export default function AdeYaarApp() {
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={balance} openBet={openBet}
-          matches={matches} user={user}
+          matches={matches} user={user} onLogout={handleLogout} bets={bets}
         />
         {betSheet && (
           <PlaceBetSheet
@@ -194,7 +196,7 @@ export default function AdeYaarApp() {
 
           <div className="scroll">
             {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onNav={setTab} user={user} />}
-            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} />}
+            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
             {tab === 'bets'    && <BetsScreen bets={bets} />}

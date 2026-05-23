@@ -80,10 +80,13 @@ export function AppHeader({ balance, onTap, user }) {
         <div className="brand-mark">A</div>
         <div className="brand-name">AdeYaar <em>26</em></div>
       </div>
-      <button className="balance-pill" onClick={onTap}>
-        <div className="balance-pill__icon">{user?.display_name?.[0] || '₹'}</div>
-        <span className="balance-pill__amt">{fmtMoney(balance)}</span>
-      </button>
+      <div className="app-header__right">
+        {user && <span className="app-header__user">{user.display_name || user.username}</span>}
+        <button className="balance-pill" onClick={onTap}>
+          <div className="balance-pill__icon">{user?.display_name?.[0] || '₹'}</div>
+          <span className="balance-pill__amt">{fmtMoney(balance)}</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -128,7 +131,7 @@ export function SectionHead({ title, more, onMore }) {
 }
 
 // ── Match card ───────────────────────────────────────────────
-export function MatchCard({ match, onBet }) {
+export function MatchCard({ match, onBet, myBets = [] }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const isLive = match.status === 'live';
@@ -136,6 +139,11 @@ export function MatchCard({ match, onBet }) {
 
   const stageLabel = match.group ? `Group ${match.group}` : 'Knockout';
   const city = match.venue?.split(',').pop()?.trim();
+  const myTotal = myBets.reduce((s, b) => s + b.amount, 0);
+
+  const hasBet = myTotal > 0;
+  const myPick = myBets[0]?.pick;
+  const pickLabel = myPick === 'home' ? home.code : myPick === 'away' ? away.code : myPick === 'draw' ? 'Draw' : '';
 
   return (
     <div className="match-card">
@@ -175,15 +183,25 @@ export function MatchCard({ match, onBet }) {
           ].map(o => (
             <button
               key={o.key}
-              className="odds-btn"
+              className={'odds-btn' + (hasBet && myPick === o.key ? ' odds-btn--active' : '')}
               onClick={(e) => { e.stopPropagation(); onBet?.(match, o.key); }}
             >
               <span className="odds-btn__label">{o.label}</span>
-              {/* odds-btn__val: odds coming soon */}
             </button>
           ))}
         </div>
       )}
+
+      <div className={`match-card__footer ${hasBet ? 'has-bet' : 'no-bet'}`}>
+        {hasBet ? (
+          <>
+            <span>Your bet: {fmtMoney(myTotal)} on {pickLabel}</span>
+            {myBets.length > 1 && <span>({myBets.length} bets)</span>}
+          </>
+        ) : (
+          <span>No bet placed</span>
+        )}
+      </div>
     </div>
   );
 }

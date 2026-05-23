@@ -22,8 +22,9 @@ const DIcon = {
 };
 
 // ── Desktop Shell ─────────────────────────────────────────────
-function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, user }) {
+function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, user, onLogout }) {
   const me = user;
+  const [showMenu, setShowMenu] = useState(false);
 
   const navItems = [
     { id: 'home',    label: 'Dashboard', icon: DIcon.home },
@@ -68,15 +69,35 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
         </div>
         */}
 
-        <div className="desk-user">
+        <div className="desk-user" style={{ position: 'relative' }}>
           <div className="desk-user__avatar">{me?.display_name?.[0] || me?.username?.[0] || '?'}</div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="desk-user__name">{me?.display_name || me?.username}</div>
             <div className="desk-user__id">@{me?.username}</div>
           </div>
-          <button className="desk-icon-btn" style={{ width: 32, height: 32 }}>
+          <button className="desk-icon-btn" style={{ width: 32, height: 32 }} onClick={() => setShowMenu(!showMenu)}>
             {DIcon.settings}
           </button>
+          {showMenu && (
+            <div style={{
+              position: 'absolute', bottom: '100%', left: 0, right: 0,
+              marginBottom: 8, background: 'var(--surface-2)', border: '1px solid var(--line)',
+              borderRadius: 8, padding: 4, zIndex: 100,
+            }}>
+              <button
+                onClick={onLogout}
+                style={{
+                  width: '100%', padding: '10px 12px', fontSize: 13, fontWeight: 500,
+                  background: 'none', border: 'none', color: 'var(--loss)',
+                  cursor: 'pointer', borderRadius: 6, textAlign: 'left',
+                }}
+                onMouseEnter={e => e.target.style.background = 'var(--surface-3)'}
+                onMouseLeave={e => e.target.style.background = 'none'}
+              >
+                Log out
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -94,11 +115,9 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
             </div>
           )}
           <div className="desk-topbar__actions">
-            <button className="desk-icon-btn">
-              {DIcon.bell}
-              <span className="dot"></span>
+            <button className="desk-icon-btn" onClick={onLogout} title="Log out">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
             </button>
-            <button className="desk-icon-btn">{DIcon.settings}</button>
           </div>
         </div>
 
@@ -111,18 +130,24 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
 }
 
 // ── Desktop fixture row ───────────────────────────────────────
-function DeskFix({ match, onBet }) {
+function DeskFix({ match, onBet, myBets = [] }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const IS_LIVE = match.status === 'live';
   const IS_FINISHED = match.status === 'finished';
   const favOdds = match.odds ? Math.min(match.odds.home, match.odds.draw, match.odds.away) : null;
+  const myTotal = myBets.reduce((s, b) => s + b.amount, 0);
 
   return (
     <div className="desk-fix">
       <div className="desk-fix__time">
         <b>{IS_LIVE ? 'LIVE' : IS_FINISHED ? 'FT' : fmtTimeIST(match.time)}</b>
         <span>{fmtDay(match.date).slice(0,3)} · {fmtDate(match.date)}</span>
+        {myTotal > 0 && (
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>
+            {fmtMoney(myTotal)}
+          </span>
+        )}
       </div>
       <div className="desk-fix__teams">
         <div className="desk-fix__team">
@@ -349,7 +374,7 @@ function DHomeScreen({ matches, balance, onBet, onNav, user }) {
 }
 
 // ── Desktop Matches ───────────────────────────────────────────
-function DMatchesScreen({ matches, onBet }) {
+function DMatchesScreen({ matches, onBet, bets = [] }) {
   const [filter, setFilter] = useState('all');
   const filters = [
     { id: 'all',   label: 'All fixtures' },
@@ -390,9 +415,10 @@ function DMatchesScreen({ matches, onBet }) {
             <span className="more mono">{byDate[date].length} matches</span>
           </div>
           <div className="desk-grid fixtures" style={{ marginTop: 0 }}>
-            {byDate[date].map(m => (
-              <DeskFix key={m.id} match={m} onBet={onBet} />
-            ))}
+            {byDate[date].map(m => {
+              const myBets = bets.filter(b => (b.match_id || b.matchId) === m.id);
+              return <DeskFix key={m.id} match={m} onBet={onBet} myBets={myBets} />;
+            })}
           </div>
         </div>
       ))}
@@ -728,7 +754,7 @@ function DBetsScreen({ user }) {
 }
 
 // ── Desktop App (root) ────────────────────────────────────────
-export default function DesktopApp({ tab, setTab, balance, openBet, matches, user }) {
+export default function DesktopApp({ tab, setTab, balance, openBet, matches, user, onLogout, bets = [] }) {
   const titles = {
     home:    { title: 'Dashboard',    sub: 'FIFA World Cup 2026 · Group stage underway' },
     matches: { title: 'Fixtures',     sub: 'All matches · group stage + knockout' },
@@ -742,10 +768,10 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches, use
     <DesktopShell
       tab={tab} onNav={setTab} balance={balance}
       title={t.title} sub={t.sub}
-      hideSearch={tab === 'bracket'} user={user}
+      hideSearch={tab === 'bracket'} user={user} onLogout={onLogout}
     >
       {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} />}
-      {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} />}
+      {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} bets={bets} />}
       {tab === 'bracket' && <DBracketScreen matches={matches} />}
       {tab === 'leaders' && <DLeaderboardScreen user={user} />}
       {tab === 'bets'    && <DBetsScreen user={user} />}

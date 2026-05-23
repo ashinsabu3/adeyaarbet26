@@ -52,7 +52,7 @@ Winner payout = (my_stake / total_stake_on_winning_side) × Pool
 If nobody bet the winning side → all bets refunded
 ```
 
-**Example:** BRA vs MAR
+**Example:** BRA vs MARAlso
 - 5 friends bet ₹500 each on BRA → pool_home = ₹2500
 - 3 friends bet ₹500 each on MAR → pool_away = ₹1500
 - Total pool = ₹4000

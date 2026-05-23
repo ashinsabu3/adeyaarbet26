@@ -1,5 +1,6 @@
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
@@ -13,12 +14,21 @@ export async function GET(request) {
     return NextResponse.redirect(new URL(next, origin));
   }
 
-  const supabase = createClient(url, key);
+  const cookieStore = await cookies();
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll: () => cookieStore.getAll(),
+      setAll: (cookiesToSet) => {
+        cookiesToSet.forEach(({ name, value, options }) =>
+          cookieStore.set(name, value, options)
+        );
+      },
+    },
+  });
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    // Redirect to login with error
     return NextResponse.redirect(new URL('/login?error=auth', origin));
   }
 

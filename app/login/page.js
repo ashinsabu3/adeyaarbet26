@@ -52,7 +52,7 @@ function LoginContent() {
 
     setLoading(true);
     setError('');
-    const { error: err } = await supabaseBrowser.auth.signUp({
+    const { data, error: err } = await supabaseBrowser.auth.signUp({
       email,
       password,
       options: {
@@ -62,6 +62,8 @@ function LoginContent() {
     });
     if (err) {
       setError(err.message);
+    } else if (data?.session) {
+      window.location.href = '/';
     } else {
       setMessage('Check your email for confirmation link!');
     }
