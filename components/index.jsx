@@ -1,7 +1,7 @@
 'use client';
 
 import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, getMatch, fmtTimeIST } from '@/lib/data';
-import { fmtMoney, CURRENCY_SYMBOL } from '@/lib/currency';
+import { fmtMoney, fmtNet, CURRENCY_SYMBOL } from '@/lib/currency';
 import { useState, useEffect } from 'react';
 
 // ── Icons ────────────────────────────────────────────────────
@@ -74,6 +74,7 @@ export function LiveDot({ minute }) {
 
 // ── App Header ───────────────────────────────────────────────
 export function AppHeader({ balance, onTap, user }) {
+  const netColor = balance >= 0 ? 'var(--win)' : 'var(--loss)';
   return (
     <div className="app-header">
       <div className="app-header__brand">
@@ -84,7 +85,7 @@ export function AppHeader({ balance, onTap, user }) {
         {user && <span className="app-header__user">{user.display_name || user.username}</span>}
         <button className="balance-pill" onClick={onTap}>
           <div className="balance-pill__icon">{user?.display_name?.[0] || '₹'}</div>
-          <span className="balance-pill__amt">{fmtMoney(balance)}</span>
+          <span className="balance-pill__amt" style={{ color: netColor }}>{fmtNet(balance)}</span>
         </button>
       </div>
     </div>
@@ -279,21 +280,21 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const sideName = side === 'home' ? home.name : side === 'away' ? away.name : 'Draw';
-  const overBalance = amount > balance;
 
   const existingPick = existingBets.length > 0 ? existingBets[0].pick : null;
   const existingTotal = existingBets.reduce((s, b) => s + b.amount, 0);
   const isSwitching = existingPick && existingPick !== side;
 
   // Compute potential payout from pool info
-  const pool = poolInfo || { total: 0, bettorCount: 0, bySide: { home: 0, away: 0, draw: 0 } };
-  const totalPool = pool.total + amount;
-  const sideTotal = (pool.bySide[side] || 0) + amount;
+  const pool = poolInfo || {};
+  const bySide = pool.bySide || { home: 0, away: 0, draw: 0 };
+  const totalPool = (pool.total || 0) + amount;
+  const sideTotal = (bySide[side] || 0) + amount;
   const potentialPayout = sideTotal > 0 ? Math.round((amount / sideTotal) * totalPool) : 0;
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={e => e.stopPropagation()}>
+      <div className="sheet" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column' }}>
         <div className="sheet-handle" />
 
         <div className="row between center" style={{ marginBottom: 14 }}>
@@ -305,6 +306,9 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
             {Icon.close}
           </button>
         </div>
+
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
 
         {/* Pool info */}
         {pool.bettorCount > 0 && (
@@ -366,22 +370,19 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
         )}
 
         {/* Amount */}
-        <div className="row between" style={{ marginBottom: 10 }}>
-          <div className="eyebrow">Amount</div>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>Bal {fmtMoney(balance)}</div>
-        </div>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Amount</div>
 
         <div style={{
           textAlign: 'center', padding: '14px 0',
           fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 36,
-          color: overBalance ? 'var(--loss)' : 'var(--ink)',
+          color: 'var(--ink)',
         }}>
           {CURRENCY_SYMBOL}{amount.toLocaleString('en-IN')}
         </div>
 
         <input
           type="range" className="slider"
-          min={50} max={Math.max(5000, balance)} step={50}
+          min={50} max={5000} step={50}
           value={amount}
           onChange={e => setAmount(Number(e.target.value))}
           style={{ marginBottom: 14 }}
@@ -394,6 +395,30 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
             </button>
           ))}
         </div>
+
+        {/* Potential payout — prominent */}
+        {potentialPayout > 0 && (
+          <div style={{
+            textAlign: 'center', marginBottom: 14,
+            padding: '10px 0',
+            borderRadius: 'var(--radius)',
+            background: 'rgba(39, 174, 96, 0.08)',
+            border: '1px solid rgba(39, 174, 96, 0.2)',
+          }}>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 2 }}>If {sideName} wins, you get</div>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28,
+              color: 'var(--win)',
+            }}>
+              {fmtMoney(potentialPayout)}
+            </div>
+            {potentialPayout > amount && (
+              <div style={{ fontSize: 11, color: 'var(--win)', opacity: 0.8 }}>
+                +{fmtMoney(potentialPayout - amount)} profit
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Summary */}
         <div style={{
@@ -410,17 +435,19 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
             <span className="mono" style={{ fontWeight: 700 }}>{fmtMoney(amount)}</span>
           </div>
           <div className="row between">
-            <span className="muted" style={{ fontSize: 12 }}>Potential payout</span>
-            <span className="mono" style={{ fontWeight: 700, color: 'var(--win)' }}>{fmtMoney(potentialPayout)}</span>
+            <span className="muted" style={{ fontSize: 12 }}>Pool size (with your bet)</span>
+            <span className="mono" style={{ fontWeight: 700 }}>{fmtMoney(pool.total + amount)}</span>
           </div>
         </div>
 
+        </div>{/* end scrollable content */}
+
         <button
           className="btn primary block lg"
-          disabled={overBalance}
+          style={{ flexShrink: 0, marginTop: 12 }}
           onClick={() => onConfirm({ matchId: match.id, pick: side, amount })}
         >
-          {overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
+          {`Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
         </button>
       </div>
     </div>

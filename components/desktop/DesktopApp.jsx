@@ -6,7 +6,8 @@ import {
   getTeam, getMatch,
   fmtCompact, fmtDay, fmtDate, fmtTimeIST,
 } from '@/lib/data';
-import { fmtMoney, STARTING_BALANCE, CURRENCY_SYMBOL } from '@/lib/currency';
+import { fmtMoney, fmtNet, CURRENCY_SYMBOL } from '@/lib/currency';
+
 import { Flag, LiveDot } from '@/components';
 
 function formatDeskActivity(a) {
@@ -81,8 +82,10 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
         </nav>
 
         <div className="desk-balance">
-          <div className="desk-balance__label">Wallet · Yaaron Cup</div>
-          <div className="desk-balance__amt">{fmtMoney(balance)}</div>
+          <div className="desk-balance__label">My position · Yaaron Cup</div>
+          <div className="desk-balance__amt" style={{ color: balance >= 0 ? 'var(--win)' : 'var(--loss)' }}>
+            {fmtNet(balance)}
+          </div>
         </div>
 
         <div className="desk-user" style={{ position: 'relative' }}>
@@ -131,8 +134,8 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
             </div>
           )}
           <div className="desk-topbar__actions">
-            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color: 'var(--gold)', marginRight: 12 }}>
-              {fmtMoney(balance)}
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color: balance >= 0 ? 'var(--win)' : 'var(--loss)', marginRight: 12 }}>
+              {fmtNet(balance)}
             </div>
             <button className="desk-icon-btn" onClick={onLogout} title="Log out">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
@@ -184,20 +187,20 @@ function DeskFix({ match, onBet, myBets = [] }) {
           )}
         </div>
       </div>
-      {!IS_FINISHED && match.odds && (
+      {!IS_FINISHED && (
         <div className="desk-fix__odds">
           {[
-            { k: 'home', l: '1',  v: match.odds.home },
-            { k: 'draw', l: 'X',  v: match.odds.draw },
-            { k: 'away', l: '2',  v: match.odds.away },
+            { k: 'home', l: home.code, v: match.odds?.home },
+            { k: 'draw', l: 'X',       v: match.odds?.draw },
+            { k: 'away', l: away.code, v: match.odds?.away },
           ].map(o => (
             <button
               key={o.k}
-              className={'odds-btn ' + (o.v === favOdds ? 'fav' : '')}
+              className={'odds-btn ' + (o.v != null && o.v === favOdds ? 'fav' : '')}
               onClick={() => onBet(match, o.k)}
             >
               <span className="odds-btn__label">{o.l}</span>
-              <span className="odds-btn__val">{o.v.toFixed(2)}</span>
+              {o.v != null && <span className="odds-btn__val">{o.v.toFixed(2)}</span>}
             </button>
           ))}
         </div>
@@ -290,20 +293,20 @@ function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [] }) {
           </div>
         </div>
 
-        {featured.odds && (
+        {featured.status !== 'finished' && (
           <div className="dhero__odds">
             {[
-              { k: 'home', l: `${home.code} to win`, v: featured.odds.home },
-              { k: 'draw', l: 'Draw',                v: featured.odds.draw },
-              { k: 'away', l: `${away.code} to win`, v: featured.odds.away },
+              { k: 'home', l: `${home.code} to win`, v: featured.odds?.home },
+              { k: 'draw', l: 'Draw',                v: featured.odds?.draw },
+              { k: 'away', l: `${away.code} to win`, v: featured.odds?.away },
             ].map(o => (
               <button
                 key={o.k}
-                className={'odds-btn ' + (o.v === favOdds ? 'fav' : '')}
+                className={'odds-btn ' + (o.v != null && o.v === favOdds ? 'fav' : '')}
                 onClick={() => onBet(featured, o.k)}
               >
                 <span className="odds-btn__label">{o.l}</span>
-                <span className="odds-btn__val">{o.v.toFixed(2)}</span>
+                {o.v != null && <span className="odds-btn__val">{o.v.toFixed(2)}</span>}
               </button>
             ))}
           </div>
@@ -628,7 +631,6 @@ function DLeaderboardScreen({ user }) {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden' }}>
           {sorted.map((f, i) => {
             const IS_ME = user && f.id === user.id;
-            const delta = f.balance - STARTING_BALANCE;
             return (
               <div key={f.id} className={'lb-row ' + (IS_ME ? 'me' : '')} style={{ padding: '13px 18px' }}>
                 <span className="lb-rank">{i + 1}</span>
@@ -643,9 +645,8 @@ function DLeaderboardScreen({ user }) {
                     }}>YOU</span>
                   )}
                 </div>
-                <span className="lb-amt">{fmtMoney(f.balance)}</span>
-                <span className={'lb-delta ' + (delta >= 0 ? 'win' : 'loss')}>
-                  {delta >= 0 ? '↑' : '↓'} {fmtCompact(Math.abs(delta))}
+                <span className={'lb-amt ' + (f.balance >= 0 ? 'win' : 'loss')} style={{ color: f.balance >= 0 ? 'var(--win)' : 'var(--loss)' }}>
+                  {fmtNet(f.balance)}
                 </span>
               </div>
             );

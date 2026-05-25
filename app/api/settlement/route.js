@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabase';
 import { FRIENDS } from '@/lib/data';
+import { computeSettlement, computeNetPositions } from '@/lib/settlement';
+
 export async function GET() {
   if (!supabase) {
-    const mock = FRIENDS.map(f => ({
-      id: f.id,
-      username: f.id,
-      display_name: f.name,
-      balance: 0,
-    }));
-    return NextResponse.json(mock);
+    const mock = FRIENDS.map(f => ({ id: f.id, display_name: f.name, balance: 0 }));
+    return NextResponse.json({
+      transactions: computeSettlement(mock),
+      positions: computeNetPositions(mock),
+    });
   }
 
-  // Compute balance from bets (ledger model)
   const { data: profiles, error: pErr } = await supabase
     .from('profiles')
     .select('id, username, display_name');
@@ -26,17 +25,19 @@ export async function GET() {
   if (bErr) return NextResponse.json({ error: bErr.message }, { status: 500 });
 
   const balanceMap = {};
-  for (const b of bets) {
+  for (const b of bets || []) {
     if (!balanceMap[b.user_id]) balanceMap[b.user_id] = { spent: 0, won: 0 };
     if (b.status !== 'cancelled') balanceMap[b.user_id].spent += b.amount;
-    if (b.status === 'won') balanceMap[b.user_id].won += (b.payout || 0);
+    if (b.status === 'won')       balanceMap[b.user_id].won   += (b.payout || 0);
   }
 
-  const result = profiles.map(p => ({
+  const profilesWithBalance = (profiles || []).map(p => ({
     ...p,
     balance: (balanceMap[p.id]?.won || 0) - (balanceMap[p.id]?.spent || 0),
   }));
 
-  result.sort((a, b) => b.balance - a.balance);
-  return NextResponse.json(result);
+  return NextResponse.json({
+    transactions: computeSettlement(profilesWithBalance),
+    positions:    computeNetPositions(profilesWithBalance),
+  });
 }

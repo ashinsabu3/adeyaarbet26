@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabase';
 import { FRIENDS } from '@/lib/data';
-import { STARTING_BALANCE } from '@/lib/currency';
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const username = searchParams.get('username');
@@ -21,7 +19,7 @@ export async function GET(request) {
       id: friend.id,
       username: friend.id,
       display_name: friend.name,
-      balance: STARTING_BALANCE,
+      balance: 0,
     });
   }
 
@@ -46,7 +44,7 @@ export async function GET(request) {
     .select('amount, status, payout')
     .eq('user_id', profile.id);
 
-  let balance = STARTING_BALANCE;
+  let balance = 0;
   if (bets) {
     for (const b of bets) {
       if (b.status !== 'cancelled') balance -= b.amount;

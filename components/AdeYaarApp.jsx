@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { MATCHES, getMatch, getTeam } from '@/lib/data';
-import { STARTING_BALANCE, fmtMoney } from '@/lib/currency';
+import { fmtMoney } from '@/lib/currency';
 import { useUser } from '@/lib/hooks';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
@@ -44,7 +44,7 @@ export default function AdeYaarApp() {
   const [tab, setTab]           = useState('home');
   const [betSheet, setBetSheet] = useState(null);
   const [toast, setToast]       = useState(null);
-  const [balance, setBalance]   = useState(STARTING_BALANCE);
+  const [balance, setBalance]   = useState(0);
   const [bets, setBets]         = useState([]);
   const [cancelling, setCancelling] = useState(null);
   const [fifaData, setFifaData] = useState(null);

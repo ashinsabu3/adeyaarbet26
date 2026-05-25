@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react';
 import supabaseBrowser from '@/lib/supabase-browser';
 import { FRIENDS } from '@/lib/data';
-import { STARTING_BALANCE } from '@/lib/currency';
 
 function LoginContent() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'forgot'
@@ -255,7 +254,7 @@ function LoginContent() {
                       id: f.id,
                       username: f.id,
                       display_name: f.name,
-                      balance: STARTING_BALANCE,
+                      balance: 0,
                     }));
                     window.location.href = '/';
                   }}
