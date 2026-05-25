@@ -254,21 +254,23 @@ export default function AdeYaarApp() {
 
           <TabBar active={tab} onChange={setTab} />
 
-          {betSheet && (
-            <PlaceBetSheet
-              match={betSheet.match}
-              pick={betSheet.pick}
-              balance={wallet}
-              poolInfo={poolMap[betSheet.match.id] || null}
-              existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
-              onClose={closeBet}
-              onConfirm={confirmBet}
-            />
-          )}
-
           {toast && <Toast message={toast} onDone={() => setToast(null)} />}
         </div>
       </div>
+
+      {betSheet && (
+        <div data-theme={theme}>
+          <PlaceBetSheet
+            match={betSheet.match}
+            pick={betSheet.pick}
+            balance={wallet}
+            poolInfo={poolMap[betSheet.match.id] || null}
+            existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
+            onClose={closeBet}
+            onConfirm={confirmBet}
+          />
+        </div>
+      )}
     </div>
   );
 }
