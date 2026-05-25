@@ -26,10 +26,21 @@ export async function GET(request) {
     },
   });
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     return NextResponse.redirect(new URL('/login?error=auth', origin));
+  }
+
+  const authUser = data?.user;
+  if (authUser) {
+    const meta = authUser.user_metadata || {};
+    const username = meta.preferred_username || meta.user_name || authUser.email?.split('@')[0] || authUser.id;
+    const display_name = meta.full_name || meta.name || username;
+    await supabase.from('profiles').upsert(
+      { id: authUser.id, username, display_name },
+      { onConflict: 'id', ignoreDuplicates: true }
+    );
   }
 
   return NextResponse.redirect(new URL(next, origin));

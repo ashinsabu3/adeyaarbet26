@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import { createSupabaseServer } from '@/lib/supabase-server';
 import { FRIENDS } from '@/lib/data';
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -9,6 +9,8 @@ export async function GET(request) {
   if (!username && !id) {
     return NextResponse.json({ error: 'username or id is required' }, { status: 400 });
   }
+
+  const supabase = await createSupabaseServer();
 
   if (!supabase) {
     const friend = FRIENDS.find(f => f.id === (username || id));
