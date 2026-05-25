@@ -42,6 +42,7 @@ export default function LeaderboardScreen({ user }) {
   const [rankings, setRankings] = useState([]);
   const [settlement, setSettlement] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [mode, setMode] = useState('pnl'); // 'pnl' or 'wallet'
 
   useEffect(() => {
     fetch('/api/leaderboard')
@@ -58,17 +59,32 @@ export default function LeaderboardScreen({ user }) {
       .catch(() => {});
   }, []);
 
-  const top3 = rankings.slice(0, 3);
+  const sorted = [...rankings].sort((a, b) =>
+    mode === 'wallet' ? (b.wallet || 0) - (a.wallet || 0) : b.balance - a.balance
+  );
+  const top3 = sorted.slice(0, 3);
   const podium = top3.length >= 3 ? [
     { ...top3[1], rank: 2 },
     { ...top3[0], rank: 1 },
     { ...top3[2], rank: 3 },
   ] : [];
 
+  const displayVal = (f) => mode === 'wallet' ? fmtMoney(f.wallet || 0) : fmtNet(f.balance);
+  const displayColor = (f) => {
+    if (mode === 'wallet') return 'var(--ink)';
+    return f.balance >= 0 ? 'var(--win)' : 'var(--loss)';
+  };
+
   return (
     <div>
       <div className="section-head" style={{ marginTop: 8 }}>
         <div className="section-head__title display">Leaderboard</div>
+      </div>
+
+      {/* Mode toggle */}
+      <div className="chip-row" style={{ marginBottom: 12 }}>
+        <button className={'chip ' + (mode === 'pnl' ? 'active' : '')} onClick={() => setMode('pnl')}>P&L</button>
+        <button className={'chip ' + (mode === 'wallet' ? 'active' : '')} onClick={() => setMode('wallet')}>Wallet</button>
       </div>
 
       {/* Podium */}
@@ -78,7 +94,7 @@ export default function LeaderboardScreen({ user }) {
             <div key={f.id} className={'podium-block rank' + f.rank}>
               <div className="podium-avatar">{(f.display_name || f.username)[0]}</div>
               <div className="podium-name">{f.display_name || f.username}</div>
-              <div className="podium-amt" style={{ color: f.balance >= 0 ? 'var(--win)' : 'var(--loss)' }}>{fmtNet(f.balance)}</div>
+              <div className="podium-amt" style={{ color: displayColor(f) }}>{displayVal(f)}</div>
               <div className="podium-bar">{f.rank}</div>
             </div>
           ))}
@@ -87,9 +103,8 @@ export default function LeaderboardScreen({ user }) {
 
       {/* Full list */}
       <div className="card" style={{ padding: 0, margin: '0 16px 24px' }}>
-        {rankings.map((f, i) => {
+        {sorted.map((f, i) => {
           const isMe = user && f.id === user.id;
-          const delta = f.balance;
           return (
             <div key={f.id} className={'lb-row ' + (isMe ? 'me' : '')}>
               <span className="lb-rank">{i + 1}</span>
@@ -104,8 +119,8 @@ export default function LeaderboardScreen({ user }) {
                   }}>YOU</span>
                 )}
               </div>
-              <span className={'lb-amt ' + (delta >= 0 ? 'win' : 'loss')} style={{ color: delta >= 0 ? 'var(--win)' : 'var(--loss)' }}>
-                {fmtNet(f.balance)}
+              <span className="lb-amt" style={{ color: displayColor(f) }}>
+                {displayVal(f)}
               </span>
             </div>
           );

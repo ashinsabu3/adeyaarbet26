@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabase';
 import { FRIENDS } from '@/lib/data';
-import { computeBalance } from '@/lib/ledger';
+import { computeBalance, STARTING_BALANCE } from '@/lib/ledger';
 
 
 export async function GET() {
@@ -33,10 +33,10 @@ export async function GET() {
     (betsByUser[b.user_id] = betsByUser[b.user_id] || []).push(b);
   }
 
-  const result = profiles.map(p => ({
-    ...p,
-    balance: computeBalance(betsByUser[p.id] || []),
-  }));
+  const result = profiles.map(p => {
+    const pnl = computeBalance(betsByUser[p.id] || []);
+    return { ...p, balance: pnl, wallet: STARTING_BALANCE + pnl };
+  });
 
   result.sort((a, b) => b.balance - a.balance);
   return NextResponse.json(result);
