@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
-import { fmtMoney } from '@/lib/currency';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { fmtMoney, CURRENCY_SYMBOL } from '@/lib/currency';
 import { BetCard } from '@/components';
 
 function AccountSection({ user, onProfileUpdate }) {
@@ -128,6 +128,97 @@ function AccountSection({ user, onProfileUpdate }) {
   );
 }
 
+function TopupSection({ user, onTopup }) {
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const handleTopup = async () => {
+    const val = parseInt(amount, 10);
+    if (!val || val <= 0) { setMsg('Enter a valid amount'); return; }
+    setLoading(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/topup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, amount: val }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMsg(`+${CURRENCY_SYMBOL}${val.toLocaleString('en-IN')} added to wallet`);
+      setAmount('');
+      if (onTopup) onTopup();
+    } catch (e) {
+      setMsg(`Error: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: '0 16px 12px' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="number"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          placeholder="Amount"
+          style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '10px 14px', color: '#fff', fontSize: 14, fontFamily: 'var(--font-mono)' }}
+        />
+        <button
+          onClick={handleTopup}
+          disabled={loading}
+          style={{ background: 'var(--gold)', color: '#0a0a0a', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          {loading ? '...' : 'Add Funds'}
+        </button>
+      </div>
+      {msg && <div style={{ marginTop: 6, fontSize: 11, color: msg.startsWith('Error') ? '#f87171' : 'var(--win)' }}>{msg}</div>}
+    </div>
+  );
+}
+
+function SettlementCard({ user }) {
+  const [myPosition, setMyPosition] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/settlement')
+      .then(r => r.json())
+      .then(data => {
+        if (data.positions) {
+          const me = data.positions.find(p => p.id === user.id);
+          if (me) setMyPosition(me.net);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
+  if (myPosition === null || myPosition === 0) return null;
+
+  const isOwing = myPosition < 0;
+  return (
+    <div style={{
+      margin: '0 16px 12px', padding: '14px 16px', borderRadius: 12,
+      background: isOwing ? 'rgba(248,113,113,0.08)' : 'rgba(74,222,128,0.08)',
+      border: `1px solid ${isOwing ? 'rgba(248,113,113,0.2)' : 'rgba(74,222,128,0.2)'}`,
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+        Real money settlement
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: isOwing ? 'var(--loss)' : 'var(--win)' }}>
+        {isOwing
+          ? `You owe ${CURRENCY_SYMBOL}${Math.abs(myPosition).toLocaleString('en-IN')}`
+          : `You receive ${CURRENCY_SYMBOL}${myPosition.toLocaleString('en-IN')}`
+        }
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
+        Based on resolved bets only · settled at end of tournament
+      </div>
+    </div>
+  );
+}
+
 export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpdate }) {
   const [tab, setTab] = useState('pending');
 
@@ -152,6 +243,8 @@ export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpda
   return (
     <div>
       <AccountSection user={user} onProfileUpdate={onProfileUpdate} />
+      <SettlementCard user={user} />
+      <TopupSection user={user} onTopup={onProfileUpdate} />
 
       <div className="section-head" style={{ marginTop: 0 }}>
         <div className="section-head__title display">My Bets</div>
