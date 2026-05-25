@@ -213,7 +213,7 @@ export default function AdeYaarApp() {
 
   if (isDesktop) {
     return (
-      <>
+      <div data-theme={theme}>
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={wallet} openBet={openBet}
@@ -231,7 +231,7 @@ export default function AdeYaarApp() {
           />
         )}
         {toast && <Toast message={toast} onDone={() => setToast(null)} />}
-      </>
+      </div>
     );
   }
 
