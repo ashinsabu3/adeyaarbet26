@@ -231,95 +231,86 @@ function MatchPoolTable({ poolData, home, away, allUsers = [] }) {
   const bettorIds = new Set(poolData.bets.map(b => b.user_id));
   const notBet = allUsers.filter(u => !bettorIds.has(u.id));
 
-  const tableStyle = {
-    width: '100%',
-    fontSize: 12,
-    borderCollapse: 'collapse',
-  };
-  const thStyle = {
-    padding: '4px 8px',
-    textAlign: 'left',
-    fontWeight: 700,
-    borderBottom: '1px solid rgba(255,255,255,0.15)',
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  };
-  const tdStyle = {
-    padding: '4px 8px',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
-    color: 'rgba(255,255,255,0.9)',
-    maxWidth: 90,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  };
-
-  const renderSideTable = (bets, label) => {
-    if (bets.length === 0) return null;
-    return (
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.5px', color: '#fff', marginBottom: 4,
-          textAlign: 'center',
-        }}>{label}</div>
-        <table style={tableStyle}>
+  const renderSideTable = (bets, label) => (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{
+        fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.5px', color: '#fff', marginBottom: 6,
+        textAlign: 'center',
+      }}>{label}</div>
+      {bets.length === 0 ? (
+        <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)', padding: '8px 0' }}>
+          —
+        </div>
+      ) : (
+        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={thStyle}>User</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Bet</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Win</th>
+              <th style={{ padding: '3px 6px', textAlign: 'left', fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>User</th>
+              <th style={{ padding: '3px 6px', textAlign: 'right', fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Bet</th>
+              <th style={{ padding: '3px 6px', textAlign: 'right', fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Win</th>
             </tr>
           </thead>
           <tbody>
             {bets.map((b, i) => (
               <tr key={i}>
-                <td style={tdStyle}>{b.display_name}</td>
-                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                  {CURRENCY_SYMBOL}{b.amount}
-                </td>
-                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#4ade80' }}>
-                  {CURRENCY_SYMBOL}{b.possible_win}
-                </td>
+                <td style={{ padding: '4px 6px', color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>{b.display_name.split(' ')[0]}</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>{CURRENCY_SYMBOL}{b.amount}</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#4ade80', fontSize: 11 }}>{CURRENCY_SYMBOL}{b.possible_win}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-    );
-  };
+      )}
+    </div>
+  );
 
   return (
     <div style={{
-      margin: '8px 0 4px',
-      padding: '10px 12px',
-      background: 'rgba(255,255,255,0.06)',
-      borderRadius: 8,
-      border: '1px solid rgba(255,255,255,0.12)',
+      margin: '10px 0 6px',
+      padding: '12px',
+      background: 'rgba(0,0,0,0.3)',
+      borderRadius: 10,
+      border: '1px solid rgba(255,255,255,0.1)',
     }}>
       <div style={{
-        fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.5px', color: 'rgba(255,255,255,0.6)', marginBottom: 8,
+        fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.8px', color: 'rgba(255,255,255,0.5)', marginBottom: 10,
         textAlign: 'center',
       }}>
         Pool: {CURRENCY_SYMBOL}{poolData.total} · {poolData.bettorCount} bettor{poolData.bettorCount !== 1 ? 's' : ''}
       </div>
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 16 }}>
         {renderSideTable(homeBets, home.name)}
+        <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
         {renderSideTable(awayBets, away.name)}
       </div>
       {drawBets.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 10, maxWidth: '60%', marginLeft: 'auto', marginRight: 'auto' }}>
           {renderSideTable(drawBets, 'Draw')}
         </div>
       )}
+      {/* Proportional bar */}
+      {poolData.total > 0 && (() => {
+        const hPct = (poolData.bySide?.home || 0) / poolData.total * 100;
+        const aPct = (poolData.bySide?.away || 0) / poolData.total * 100;
+        const dPct = (poolData.bySide?.draw || 0) / poolData.total * 100;
+        return (
+          <div style={{
+            marginTop: 10, height: 6, borderRadius: 3, overflow: 'hidden',
+            display: 'flex', background: 'rgba(255,255,255,0.1)',
+          }}>
+            {hPct > 0 && <div style={{ width: `${hPct}%`, background: '#4ade80' }} />}
+            {dPct > 0 && <div style={{ width: `${dPct}%`, background: '#6b7280' }} />}
+            {aPct > 0 && <div style={{ width: `${aPct}%`, background: '#f87171' }} />}
+          </div>
+        );
+      })()}
       {notBet.length > 0 && (
         <div style={{
-          marginTop: 8, paddingTop: 8,
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          fontSize: 11, color: 'rgba(255,255,255,0.35)',
+          marginTop: 8, paddingTop: 6,
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          fontSize: 11, color: 'rgba(255,255,255,0.3)',
           textAlign: 'center',
         }}>
           Haven&apos;t bet: {notBet.map(u => u.display_name.split(' ')[0]).join(', ')}
