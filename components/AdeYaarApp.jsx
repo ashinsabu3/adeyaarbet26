@@ -41,7 +41,7 @@ function mergeWithFifa(staticMatch, fifaResults) {
 
 export default function AdeYaarApp() {
   const theme = 'midnight';
-  const { user, loading } = useUser();
+  const { user, loading, refreshUser } = useUser();
   const [tab, setTab]           = useState('home');
   const [betSheet, setBetSheet] = useState(null);
   const [toast, setToast]       = useState(null);
@@ -220,7 +220,7 @@ export default function AdeYaarApp() {
             {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
-            {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} />}
+            {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} onProfileUpdate={refreshUser} />}
           </div>
 
           <TabBar active={tab} onChange={setTab} />

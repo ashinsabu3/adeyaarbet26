@@ -1,12 +1,47 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fmtCompact } from '@/lib/data';
+import { fmtCompact, getMatch, getTeam } from '@/lib/data';
 import { fmtMoney, fmtNet, CURRENCY_SYMBOL } from '@/lib/currency';
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function formatActivity(a) {
+  const match = a.payload?.match_id ? getMatch(a.payload.match_id) : null;
+  const matchLabel = match
+    ? `${getTeam(match.home).name} vs ${getTeam(match.away).name}`
+    : a.payload?.match_id || '';
+
+  if (a.type === 'bet_placed' && a.payload) {
+    const pickTeam = match
+      ? (a.payload.pick === 'home' ? getTeam(match.home).name : a.payload.pick === 'away' ? getTeam(match.away).name : 'Draw')
+      : a.payload.pick;
+    return `${a.profiles?.display_name || 'Someone'} bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${pickTeam} · ${matchLabel}`;
+  }
+  if (a.type === 'bet_cancelled' && a.payload) {
+    if (a.payload.reason === 'side_switch') {
+      return `${a.profiles?.display_name || 'Someone'} switched sides · ${matchLabel}`;
+    }
+    return `${a.profiles?.display_name || 'Someone'} cancelled bet · ${matchLabel}`;
+  }
+  if (a.type === 'bet_won' && a.payload) {
+    return `${a.profiles?.display_name || 'Someone'} won ${CURRENCY_SYMBOL}${a.payload.payout} · ${matchLabel}`;
+  }
+  return `${a.profiles?.display_name || 'Someone'} · ${a.type}`;
+}
 
 export default function LeaderboardScreen({ user }) {
   const [rankings, setRankings] = useState([]);
   const [settlement, setSettlement] = useState([]);
+  const [activity, setActivity] = useState([]);
 
   useEffect(() => {
     fetch('/api/leaderboard')
@@ -16,6 +51,10 @@ export default function LeaderboardScreen({ user }) {
     fetch('/api/settlement')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data.transactions)) setSettlement(data.transactions); })
+      .catch(() => {});
+    fetch('/api/activity?limit=20')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setActivity(data); })
       .catch(() => {});
   }, []);
 

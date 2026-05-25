@@ -350,7 +350,7 @@ function MatchPoolTable({ poolData, home, away, allUsers = [] }) {
           <tbody>
             {bets.map((b, i) => (
               <tr key={i}>
-                <td style={{ padding: '4px 6px', color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>{b.display_name.split(' ')[0]}</td>
+                <td style={{ padding: '4px 6px', color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>{(b.display_name || b.username || '?').split(' ')[0]}</td>
                 <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>{CURRENCY_SYMBOL}{b.amount}</td>
                 <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#4ade80', fontSize: 11 }}>{CURRENCY_SYMBOL}{b.possible_win}</td>
               </tr>
@@ -409,7 +409,7 @@ function MatchPoolTable({ poolData, home, away, allUsers = [] }) {
           fontSize: 11, color: 'rgba(255,255,255,0.3)',
           textAlign: 'center',
         }}>
-          Haven&apos;t bet: {notBet.map(u => u.display_name.split(' ')[0]).join(', ')}
+          Haven&apos;t bet: {notBet.map(u => (u.display_name || u.username || '?').split(' ')[0]).join(', ')}
         </div>
       )}
     </div>
