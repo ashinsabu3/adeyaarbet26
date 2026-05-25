@@ -173,6 +173,22 @@ export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpda
         ))}
       </div>
 
+      {settled.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', margin: '0 0 12px' }}>
+          <img
+            src={winRate >= 50 ? '/sticker-win.png' : '/sticker-loss.png'}
+            alt=""
+            style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }}
+          />
+          <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+            {winRate >= 50
+              ? `Eating good — ${bets.filter(b => b.status === 'won').length} wins from ${settled.length} settled`
+              : `War mode — ${bets.filter(b => b.status === 'lost').length} losses from ${settled.length} settled`
+            }
+          </div>
+        </div>
+      )}
+
       <div className="chip-row" style={{ marginBottom: 12 }}>
         {[
           { id: 'pending', label: `Open · ${bets.filter(b => b.status === 'pending').length}` },

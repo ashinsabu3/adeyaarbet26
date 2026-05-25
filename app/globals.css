@@ -399,7 +399,7 @@ body {
 .sheet {
   width: 100%; background: var(--surface);
   border-radius: 28px 28px 0 0; padding: 14px 20px 20px;
-  max-height: 92dvh; overflow: hidden;
+  max-height: 92dvh; overflow-y: auto;
   display: flex; flex-direction: column;
   animation: slideUp 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
   border-top: 1px solid var(--line);
