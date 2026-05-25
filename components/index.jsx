@@ -370,6 +370,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
   const presets = [100, 250, 500, 1000];
   const [amount, setAmount] = useState(250);
   const [side, setSide] = useState(pick || 'home');
+  const [submitting, setSubmitting] = useState(false);
 
   const home = getTeam(match.home);
   const away = getTeam(match.away);
@@ -512,10 +513,10 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
 
         <button
           className="btn primary block lg"
-          disabled={overBalance}
-          onClick={() => onConfirm({ matchId: match.id, pick: side, amount })}
+          disabled={overBalance || submitting}
+          onClick={() => { setSubmitting(true); onConfirm({ matchId: match.id, pick: side, amount }); }}
         >
-          {overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
+          {submitting ? 'Placing...' : overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
         </button>
       </div>
     </div>

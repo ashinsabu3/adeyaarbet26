@@ -1,13 +1,25 @@
-import supabase from './supabase';
+-- AdeYaar 26 — Production Bootstrap
+-- Run this ONCE in Supabase SQL Editor to set up the entire schema.
+-- After this, future migrations auto-apply via exec_sql on deploy/restart.
 
-// Each migration: { version, name, sql }
-// SQL MUST be idempotent — safe to run on a DB that's already partially applied.
-const MIGRATIONS = [
-  {
-    version: 1,
-    name: 'initial_schema',
-    sql: `
--- Profiles
+-- Enable auto-migration support (restricted to service_role only)
+CREATE OR REPLACE FUNCTION public.exec_sql(sql text)
+RETURNS void AS $$ BEGIN EXECUTE sql; END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE EXECUTE ON FUNCTION public.exec_sql(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.exec_sql(text) FROM authenticated;
+
+-- Migration tracking table
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+  version integer PRIMARY KEY,
+  name text NOT NULL,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- Migration 1: initial_schema
+-- ═══════════════════════════════════════════════════════════════
+
 CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid PRIMARY KEY,
   username text UNIQUE NOT NULL,
@@ -18,7 +30,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Activity
 CREATE TABLE IF NOT EXISTS public.activity (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -30,7 +41,6 @@ CREATE INDEX IF NOT EXISTS idx_activity_created_at ON public.activity(created_at
 CREATE INDEX IF NOT EXISTS idx_activity_user_id ON public.activity(user_id);
 ALTER TABLE public.activity ENABLE ROW LEVEL SECURITY;
 
--- Bets
 CREATE TABLE IF NOT EXISTS public.bets (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -44,12 +54,11 @@ CREATE TABLE IF NOT EXISTS public.bets (
 CREATE INDEX IF NOT EXISTS idx_bets_user_id ON public.bets(user_id);
 CREATE INDEX IF NOT EXISTS idx_bets_match_id ON public.bets(match_id);
 ALTER TABLE public.bets ENABLE ROW LEVEL SECURITY;
-`,
-  },
-  {
-    version: 2,
-    name: 'anon_policies',
-    sql: `
+
+-- ═══════════════════════════════════════════════════════════════
+-- Migration 2: anon_policies
+-- ═══════════════════════════════════════════════════════════════
+
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anon can view profiles' AND tablename = 'profiles') THEN
     CREATE POLICY "Anon can view profiles" ON public.profiles FOR SELECT TO anon USING (true);
@@ -72,29 +81,21 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anon can update profiles' AND tablename = 'profiles') THEN
     CREATE POLICY "Anon can update profiles" ON public.profiles FOR UPDATE TO anon USING (true);
   END IF;
-  -- No anon UPDATE on bets — all mutations via SECURITY DEFINER functions
+  -- NOTE: No anon UPDATE on bets — all mutations go through SECURITY DEFINER functions
 END $$;
-`,
-  },
-  {
-    version: 3,
-    name: 'ledger_model',
-    sql: `
--- Activity type constraint (idempotent: drop then re-add)
+
+-- ═══════════════════════════════════════════════════════════════
+-- Migration 3: ledger_model
+-- ═══════════════════════════════════════════════════════════════
+
 ALTER TABLE public.activity DROP CONSTRAINT IF EXISTS activity_type_check;
 ALTER TABLE public.activity ADD CONSTRAINT activity_type_check
   CHECK (type IN ('bet_placed', 'bet_won', 'bet_lost', 'bet_cancelled', 'joined'));
 
--- Payout column
 ALTER TABLE public.bets ADD COLUMN IF NOT EXISTS payout integer;
-
--- Drop odds column if it exists (legacy)
 ALTER TABLE public.bets DROP COLUMN IF EXISTS odds;
-
--- Balance default
 ALTER TABLE public.profiles ALTER COLUMN balance SET DEFAULT 5000;
 
--- compute_balance: derive from bet ledger
 CREATE OR REPLACE FUNCTION public.compute_balance(p_user_id uuid)
 RETURNS integer AS $$
   SELECT 5000
@@ -104,7 +105,6 @@ RETURNS integer AS $$
   WHERE user_id = p_user_id;
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
--- place_bet: atomic bet placement with side-switch auto-cancel
 CREATE OR REPLACE FUNCTION public.place_bet(
   p_user_id uuid, p_match_id text, p_pick text, p_amount integer
 ) RETURNS json AS $$
@@ -116,7 +116,7 @@ BEGIN
   IF p_pick NOT IN ('home', 'away', 'draw') THEN RAISE EXCEPTION 'Invalid pick'; END IF;
   IF p_amount <= 0 THEN RAISE EXCEPTION 'Amount must be positive'; END IF;
 
-  -- Lock user profile to serialize ALL bets by this user (prevents concurrent double-spend)
+  -- Lock the user's profile row to serialize ALL bets by this user (prevents concurrent double-spend)
   PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'User not found'; END IF;
 
@@ -145,7 +145,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- cancel_bets: atomic cancel
 CREATE OR REPLACE FUNCTION public.cancel_bets(
   p_user_id uuid, p_match_id text
 ) RETURNS json AS $$
@@ -170,7 +169,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- resolve_match: parimutuel payout distribution
 CREATE OR REPLACE FUNCTION public.resolve_match(p_match_id text, p_winner text)
 RETURNS json AS $$
 DECLARE
@@ -220,12 +218,11 @@ BEGIN
     'payouts_made', v_payouts_made, 'winner', p_winner);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-`,
-  },
-  {
-    version: 4,
-    name: 'settlements',
-    sql: `
+
+-- ═══════════════════════════════════════════════════════════════
+-- Migration 4: settlements
+-- ═══════════════════════════════════════════════════════════════
+
 CREATE TABLE IF NOT EXISTS public.settlements (
   id bigserial PRIMARY KEY,
   from_user uuid NOT NULL REFERENCES public.profiles(id),
@@ -246,127 +243,14 @@ DO $$ BEGIN
     CREATE POLICY "anon_settlements_insert" ON public.settlements FOR INSERT TO anon WITH CHECK (true);
   END IF;
 END $$;
-`,
-  },
-];
 
-// Module-level singleton: runs once per cold start, all callers await the same promise
-let migrationPromise = null;
-let migrationResult = null;
+-- ═══════════════════════════════════════════════════════════════
+-- Record all migrations as applied
+-- ═══════════════════════════════════════════════════════════════
 
-async function runMigrations() {
-  if (!supabase) return { status: 'skipped', reason: 'no_database' };
-
-  try {
-    // Try to use exec_sql (only callable by service_role after bootstrap).
-    const { error: bootstrapErr } = await supabase.rpc('exec_sql', {
-      sql: `
-        CREATE TABLE IF NOT EXISTS public.schema_migrations (
-          version integer PRIMARY KEY,
-          name text NOT NULL,
-          applied_at timestamptz NOT NULL DEFAULT now()
-        );
-      `,
-    });
-
-    if (bootstrapErr && bootstrapErr.message?.includes('does not exist')) {
-      // exec_sql doesn't exist — provide the bootstrap SQL for manual execution
-      const bootstrapSQL = `
--- Run this ONCE in Supabase SQL Editor to enable auto-migration:
-CREATE OR REPLACE FUNCTION public.exec_sql(sql text)
-RETURNS void AS $$
-BEGIN EXECUTE sql; END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-${getFullSQL()}
-`;
-      return {
-        status: 'needs_manual',
-        reason: 'exec_sql function missing',
-        hint: 'Run the SQL below in Supabase SQL Editor (one-time setup)',
-        sql: bootstrapSQL,
-      };
-    }
-    if (bootstrapErr) {
-      return { status: 'error', reason: bootstrapErr.message };
-    }
-
-    // Check which versions are already applied
-    const { data: applied } = await supabase
-      .from('schema_migrations')
-      .select('version')
-      .order('version');
-
-    const appliedSet = new Set((applied || []).map((r) => r.version));
-    const pending = MIGRATIONS.filter((m) => !appliedSet.has(m.version));
-
-    if (pending.length === 0) {
-      return { status: 'ok', applied: MIGRATIONS.length, pending: 0 };
-    }
-
-    // Apply each pending migration in order
-    const results = [];
-    for (const migration of pending) {
-      const { error } = await supabase.rpc('exec_sql', { sql: migration.sql });
-      if (error) {
-        results.push({ version: migration.version, name: migration.name, error: error.message });
-        // Don't stop — later migrations might still be applicable
-        continue;
-      }
-
-      // Record successful application
-      await supabase.from('schema_migrations').upsert({
-        version: migration.version,
-        name: migration.name,
-      });
-      results.push({ version: migration.version, name: migration.name, ok: true });
-    }
-
-    const failed = results.filter((r) => r.error);
-    return {
-      status: failed.length === 0 ? 'ok' : 'partial',
-      applied: results.filter((r) => r.ok).length,
-      failed,
-      total: MIGRATIONS.length,
-    };
-  } catch (err) {
-    return { status: 'error', reason: err.message };
-  }
-}
-
-// Public: ensures migrations run exactly once per process lifetime
-export function ensureMigrated() {
-  if (migrationResult) return Promise.resolve(migrationResult);
-  if (!migrationPromise) {
-    migrationPromise = runMigrations().then((result) => {
-      migrationResult = result;
-      return result;
-    });
-  }
-  return migrationPromise;
-}
-
-// Public: force re-run (for /api/setup manual trigger)
-export async function forceMigrate() {
-  migrationPromise = null;
-  migrationResult = null;
-  return runMigrations().then((result) => {
-    migrationResult = result;
-    migrationPromise = Promise.resolve(result);
-    return result;
-  });
-}
-
-// Public: get current status without triggering
-export function getMigrationStatus() {
-  return migrationResult;
-}
-
-// Public: full SQL for manual execution
-export function getFullSQL() {
-  return MIGRATIONS.map(
-    (m) => `-- Migration ${m.version}: ${m.name}\n${m.sql}`
-  ).join('\n\n');
-}
-
-export { MIGRATIONS };
+INSERT INTO public.schema_migrations (version, name) VALUES
+  (1, 'initial_schema'),
+  (2, 'anon_policies'),
+  (3, 'ledger_model'),
+  (4, 'settlements')
+ON CONFLICT (version) DO NOTHING;

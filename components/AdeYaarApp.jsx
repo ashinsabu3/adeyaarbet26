@@ -144,6 +144,7 @@ export default function AdeYaarApp() {
           ? { ...b, status: 'cancelled' }
           : b
       ));
+      setPoolMap(prev => { const next = { ...prev }; delete next[matchId]; return next; });
       setToast(`Bet cancelled · ${fmtMoney(data.refunded)} refunded`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
@@ -175,8 +176,7 @@ export default function AdeYaarApp() {
       const data = await res.json();
 
       if (res.status === 503) {
-        setBalance(b => b - amount);
-        setBets(prev => [{ id: Date.now(), match_id: matchId, pick, amount, status: 'pending', created_at: new Date().toISOString() }, ...prev]);
+        throw new Error('Database unavailable — bet not placed');
       } else if (!res.ok) {
         throw new Error(data.error || 'Failed to place bet');
       } else {
