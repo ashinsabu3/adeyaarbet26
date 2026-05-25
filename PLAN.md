@@ -299,3 +299,17 @@ main ──┬── feat/oauth-login       (PR #1)
 [2026-05-22 14:55] VERIFIED: All 4 branches build clean, no cross-contamination ✓
 [2026-05-22 14:56] UPDATED: Feature 1 expanded to include email/password auth + account linking
 ```
+
+---
+
+## Sticker / Personality Ideas (app/assets/)
+
+Stickers: FUAARK guy, war cat, eating guy, Jimmy Butler ???
+
+- **Empty states**: "No bets placed" → Jimmy Butler ???. "No activity" → war cat.
+- **Leaderboard #1**: FUAARK guy pointing up next to the leader (or rotate random).
+- **Bet win toast**: eating guy. Bet loss → Jimmy Butler confused.
+- **Login page**: random sticker + casual tagline ("place your bets, idiot").
+- **Zero balance**: war cat. Caption: "You're cooked."
+- **Loading spinner**: rotating sticker while data fetches.
+- **404 / error page**: Jimmy Butler staring at paper.

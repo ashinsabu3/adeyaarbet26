@@ -59,15 +59,6 @@ export default function AdeYaarApp() {
       window.location.href = '/login';
       return;
     }
-    fetch(`/api/profile?id=${user.id}`)
-      .then(r => {
-        if (r.status === 404) {
-          localStorage.removeItem('adeyaar_user');
-          import('@/lib/supabase-browser').then(m => m.default?.auth.signOut());
-          window.location.href = '/login';
-        }
-      })
-      .catch(() => {});
   }, [user, loading]);
 
   const refreshData = useCallback(() => {
