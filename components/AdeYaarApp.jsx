@@ -86,19 +86,16 @@ export default function AdeYaarApp() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Fetch pool data for all matches that have any bets (for pool table + bet sheet)
-  useEffect(() => {
-    if (!bets.length) { setPoolMap({}); return; }
-    const matchIds = [...new Set(bets.filter(b => b.status === 'pending').map(b => b.match_id || b.matchId))];
-    if (!matchIds.length) { setPoolMap({}); return; }
-    Promise.all(
-      matchIds.map(id => fetch(`/api/pool?match_id=${id}`).then(r => r.json()).catch(() => null))
-    ).then(results => {
-      const map = {};
-      matchIds.forEach((id, i) => { if (results[i]) map[id] = results[i]; });
-      setPoolMap(map);
-    });
-  }, [bets]);
+  // Fetch all active pools (single request, returns map of match_id → pool data)
+  const refreshPools = useCallback(() => {
+    if (!user) return;
+    fetch('/api/pool')
+      .then(r => r.json())
+      .then(data => { if (data && typeof data === 'object') setPoolMap(data); })
+      .catch(() => {});
+  }, [user]);
+
+  useEffect(() => { refreshPools(); }, [refreshPools]);
 
   const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
@@ -122,7 +119,7 @@ export default function AdeYaarApp() {
           ? { ...b, status: 'cancelled' }
           : b
       ));
-      setPoolMap(prev => { const next = { ...prev }; delete next[matchId]; return next; });
+      refreshPools();
       setToast(`Bet cancelled · ${fmtMoney(data.refunded)} refunded`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
@@ -159,6 +156,7 @@ export default function AdeYaarApp() {
         throw new Error(data.error || 'Failed to place bet');
       } else {
         refreshData();
+        refreshPools();
       }
 
       setBetSheet(null);
