@@ -590,6 +590,17 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
           </div>
         )}
 
+        {/* Same-side existing bet info */}
+        {existingPick && existingPick === side && !isSwitching && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 8, marginBottom: 14,
+            background: 'rgba(74, 222, 128, 0.08)', border: '1px solid rgba(74, 222, 128, 0.2)',
+            fontSize: 12, color: 'var(--win)', lineHeight: 1.4,
+          }}>
+            You already have <b>{fmtMoney(existingTotal)}</b> on <b>{sideName}</b>. Cancel your existing bet first to place a new one.
+          </div>
+        )}
+
         {/* Amount */}
         <div className="eyebrow" style={{ marginBottom: 10 }}>Amount</div>
 
@@ -666,7 +677,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
         <button
           className="btn primary block lg"
           style={{ flexShrink: 0, marginTop: 12 }}
-          disabled={overBalance || submitting}
+          disabled={overBalance || submitting || (existingPick === side)}
           onClick={async () => {
             setSubmitting(true);
             try { await onConfirm({ matchId: match.id, pick: side, amount }); }
@@ -674,7 +685,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
             finally { setSubmitting(false); }
           }}
         >
-          {submitting ? 'Placing...' : overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
+          {submitting ? 'Placing...' : (existingPick === side) ? 'Already placed — cancel to change' : overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
         </button>
       </div>
     </div>

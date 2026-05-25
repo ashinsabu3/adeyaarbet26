@@ -273,7 +273,7 @@ function DeskPoolTable({ poolData, home, away }) {
 }
 
 // ── Desktop Home ──────────────────────────────────────────────
-function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [], poolMap = {} }) {
+function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [], poolMap = {}, onCancelBet }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 6);
   const featured = live[0] || upcoming[0];
@@ -374,6 +374,24 @@ function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [], poolMap 
             ))}
           </div>
         )}
+        {(() => {
+          const myBets = bets.filter(b => (b.match_id || b.matchId) === featured.id && b.status === 'pending');
+          const myTotal = myBets.reduce((s, b) => s + b.amount, 0);
+          if (myTotal <= 0) return null;
+          const myPick = myBets[0]?.pick;
+          const pickLabel = myPick === 'home' ? home.code : myPick === 'away' ? away.code : 'Draw';
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 10 }}>
+              <span style={{ fontSize: 13, color: 'var(--win)', fontWeight: 600 }}>Your bet: {fmtMoney(myTotal)} on {pickLabel}</span>
+              {featured.status !== 'live' && onCancelBet && (
+                <button
+                  onClick={() => onCancelBet(featured.id)}
+                  style={{ background: 'none', border: 'none', color: '#f87171', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                >Cancel</button>
+              )}
+            </div>
+          );
+        })()}
         {poolMap[featured.id] && poolMap[featured.id].bets && poolMap[featured.id].bets.length > 0 && (
           <DeskPoolTable poolData={poolMap[featured.id]} home={home} away={away} />
         )}
@@ -866,7 +884,7 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches, use
       title={t.title} sub={t.sub}
       hideSearch={tab === 'bracket'} user={user} onLogout={onLogout}
     >
-      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} bets={bets} poolMap={poolMap} />}
+      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} bets={bets} poolMap={poolMap} onCancelBet={onCancelBet} />}
       {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} bets={bets} poolMap={poolMap} />}
       {tab === 'bracket' && <DBracketScreen matches={matches} />}
       {tab === 'leaders' && <DLeaderboardScreen user={user} />}

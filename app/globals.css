@@ -419,6 +419,12 @@ body {
     border: 1px solid rgba(255,255,255,0.1);
     animation: scaleIn 0.2s ease;
   }
+  .sheet .card { background: rgba(255,255,255,0.06); color: inherit; }
+  .sheet .muted { color: rgba(255,255,255,0.5); }
+  .sheet .eyebrow { color: rgba(255,255,255,0.6); }
+  .sheet .mono { color: inherit; }
+  .sheet .odds-btn { color: #F2F3F5; }
+  .sheet .odds-btn__label { color: inherit; }
   @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 }
 .sheet-handle {

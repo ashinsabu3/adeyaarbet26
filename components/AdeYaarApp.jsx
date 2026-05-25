@@ -203,6 +203,7 @@ export default function AdeYaarApp() {
                    pick === 'away' ? getTeam(match.away) : null;
       setToast(`Bet placed · ${fmtMoney(amount)} on ${team ? team.name : 'Draw'}`);
     } catch (err) {
+      setBetSheet(null);
       setToast(`Error: ${err.message}`);
     } finally {
       setPlacing(false);
@@ -248,7 +249,7 @@ export default function AdeYaarApp() {
               {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
               {tab === 'bracket' && <BracketScreen matches={matches} />}
               {tab === 'leaders' && <LeaderboardScreen user={user} />}
-              {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} onProfileUpdate={refreshUser} wallet={wallet} />}
+              {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} onProfileUpdate={refreshUser} onRefreshBets={refreshData} wallet={wallet} />}
             </ErrorBoundary>
           </div>
 

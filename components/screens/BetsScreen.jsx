@@ -222,25 +222,27 @@ function SettlementCard({ user }) {
   );
 }
 
-export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpdate, wallet }) {
+export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpdate, onRefreshBets, wallet }) {
   const [tab, setTab] = useState('pending');
 
+  const realBets = useMemo(() => bets.filter(b => b.match_id !== '_topup'), [bets]);
+
   const filtered = useMemo(() => {
-    if (tab === 'all') return bets;
-    return bets.filter(b => b.status === tab);
-  }, [bets, tab]);
+    if (tab === 'all') return realBets;
+    return realBets.filter(b => b.status === tab);
+  }, [realBets, tab]);
 
   const totalOpen = useMemo(
-    () => bets.filter(b => b.status === 'pending').reduce((s, b) => s + b.amount, 0),
-    [bets]
+    () => realBets.filter(b => b.status === 'pending').reduce((s, b) => s + b.amount, 0),
+    [realBets]
   );
   const totalWon = useMemo(
-    () => bets.filter(b => b.status === 'won').reduce((s, b) => s + ((b.payout || 0) - b.amount), 0),
-    [bets]
+    () => realBets.filter(b => b.status === 'won').reduce((s, b) => s + ((b.payout || 0) - b.amount), 0),
+    [realBets]
   );
-  const settled = bets.filter(b => b.status === 'won' || b.status === 'lost');
+  const settled = realBets.filter(b => b.status === 'won' || b.status === 'lost');
   const winRate = settled.length
-    ? Math.round(100 * bets.filter(b => b.status === 'won').length / settled.length)
+    ? Math.round(100 * realBets.filter(b => b.status === 'won').length / settled.length)
     : 0;
 
   return (
@@ -250,10 +252,10 @@ export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpda
 
       {/* Wallet balance + topup */}
       <div style={{ padding: '0 16px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Play wallet</span>
+        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Wallet</span>
         <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{fmtMoney(wallet)}</span>
       </div>
-      <TopupSection user={user} onTopup={onProfileUpdate} />
+      <TopupSection user={user} onTopup={onRefreshBets || onProfileUpdate} />
 
       <div className="section-head" style={{ marginTop: 0 }}>
         <div className="section-head__title display">My Bets</div>
@@ -293,7 +295,7 @@ export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpda
 
       <div className="chip-row" style={{ marginBottom: 12 }}>
         {[
-          { id: 'pending', label: `Open · ${bets.filter(b => b.status === 'pending').length}` },
+          { id: 'pending', label: `Open · ${realBets.filter(b => b.status === 'pending').length}` },
           { id: 'won',  label: 'Won' },
           { id: 'lost', label: 'Lost' },
           { id: 'all',  label: 'All' },
@@ -311,7 +313,7 @@ export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpda
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {filtered.length === 0 && (
           <div className="card" style={{ textAlign: 'center', padding: 28, color: 'var(--ink-3)' }}>
-            {bets.length === 0 ? 'Place your first bet!' : `No ${tab} bets yet`}
+            {realBets.length === 0 ? 'Place your first bet!' : `No ${tab} bets yet`}
           </div>
         )}
         {filtered.map(b => <BetCard key={b.id} bet={b} onCancelBet={onCancelBet} />)}
