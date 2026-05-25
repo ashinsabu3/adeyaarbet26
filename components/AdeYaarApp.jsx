@@ -50,6 +50,7 @@ export default function AdeYaarApp() {
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [poolInfo, setPoolInfo] = useState(null);
+  const [poolMap, setPoolMap] = useState({});
 
   useEffect(() => {
     if (loading) return;
@@ -105,6 +106,20 @@ export default function AdeYaarApp() {
       .then(setPoolInfo)
       .catch(() => setPoolInfo(null));
   }, [betSheet]);
+
+  // Fetch pool data for all matches that have any bets (for the pool table on cards)
+  useEffect(() => {
+    if (!bets.length) { setPoolMap({}); return; }
+    const matchIds = [...new Set(bets.filter(b => b.status === 'pending').map(b => b.match_id || b.matchId))];
+    if (!matchIds.length) { setPoolMap({}); return; }
+    Promise.all(
+      matchIds.map(id => fetch(`/api/pool?match_id=${id}`).then(r => r.json()).catch(() => null))
+    ).then(results => {
+      const map = {};
+      matchIds.forEach((id, i) => { if (results[i]) map[id] = results[i]; });
+      setPoolMap(map);
+    });
+  }, [bets]);
 
   const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
@@ -188,7 +203,7 @@ export default function AdeYaarApp() {
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={balance} openBet={openBet}
-          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet}
+          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet} poolMap={poolMap}
         />
         {betSheet && (
           <PlaceBetSheet
@@ -213,8 +228,8 @@ export default function AdeYaarApp() {
           <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} />}
-            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} />}
+            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
             {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} />}

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import { getDb } from '@/lib/db';
 import { FRIENDS } from '@/lib/data';
 import { STARTING_BALANCE } from '@/lib/currency';
 
 export async function GET() {
+  const supabase = await getDb();
   if (!supabase) {
     const mock = FRIENDS.map(f => ({
       id: f.id,

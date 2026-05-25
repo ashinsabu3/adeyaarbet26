@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import { getDb } from '@/lib/db';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('user_id');
   const matchId = searchParams.get('match_id');
 
+  const supabase = await getDb();
   if (!supabase) {
     return NextResponse.json([]);
   }
@@ -21,6 +22,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const supabase = await getDb();
   if (!supabase) {
     return NextResponse.json({ error: 'Betting requires database. Set NEXT_PUBLIC_SUPABASE_URL.' }, { status: 503 });
   }

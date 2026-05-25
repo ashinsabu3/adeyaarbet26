@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import { getDb } from '@/lib/db';
 
 const FRIENDS = [
   { id: '00000000-0000-0000-0000-000000000001', username: 'ashin', display_name: 'Ashin' },
@@ -13,6 +13,7 @@ const FRIENDS = [
 ];
 
 export async function GET() {
+  const supabase = await getDb();
   if (!supabase) {
     return NextResponse.json({
       users: FRIENDS.map(f => ({ ...f, balance: 5000 })),

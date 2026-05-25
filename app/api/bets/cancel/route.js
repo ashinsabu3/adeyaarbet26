@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabase';
+import { getDb } from '@/lib/db';
 
 export async function POST(request) {
+  const supabase = await getDb();
   if (!supabase) {
     return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   }
