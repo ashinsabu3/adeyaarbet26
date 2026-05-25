@@ -398,8 +398,8 @@ body {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .sheet {
   width: 100%; background: var(--surface, #111317);
-  border-radius: 28px 28px 0 0; padding: 14px 20px 20px;
-  max-height: 92dvh; overflow: hidden;
+  border-radius: 28px 28px 0 0; padding: 14px 20px 24px;
+  max-height: 92dvh;
   display: flex; flex-direction: column;
   animation: slideUp 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
   border-top: 1px solid var(--line);
@@ -415,6 +415,7 @@ body {
     border-radius: 20px;
     max-height: 80vh;
     background: #111317;
+    color: #F2F3F5;
     border: 1px solid rgba(255,255,255,0.1);
     animation: scaleIn 0.2s ease;
   }

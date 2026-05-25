@@ -256,6 +256,18 @@ function DeskPoolTable({ poolData, home, away }) {
         {renderSide(awayBets, away.name)}
       </div>
       {drawBets.length > 0 && <div style={{ marginTop: 4 }}>{renderSide(drawBets, 'Draw')}</div>}
+      {poolData.total > 0 && (() => {
+        const hPct = (poolData.bySide?.home || 0) / poolData.total * 100;
+        const aPct = (poolData.bySide?.away || 0) / poolData.total * 100;
+        const dPct = (poolData.bySide?.draw || 0) / poolData.total * 100;
+        return (
+          <div style={{ marginTop: 6, height: 5, borderRadius: 3, overflow: 'hidden', display: 'flex', background: 'rgba(255,255,255,0.08)' }}>
+            {hPct > 0 && <div style={{ width: `${hPct}%`, background: '#4ade80' }} />}
+            {dPct > 0 && <div style={{ width: `${dPct}%`, background: '#6b7280' }} />}
+            {aPct > 0 && <div style={{ width: `${aPct}%`, background: '#f87171' }} />}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -361,6 +373,9 @@ function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [], poolMap 
               </button>
             ))}
           </div>
+        )}
+        {poolMap[featured.id] && poolMap[featured.id].bets && poolMap[featured.id].bets.length > 0 && (
+          <DeskPoolTable poolData={poolMap[featured.id]} home={home} away={away} />
         )}
       </section>
 
