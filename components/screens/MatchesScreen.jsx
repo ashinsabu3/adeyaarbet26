@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { fmtDay, fmtDate } from '@/lib/data';
 import { MatchCard } from '@/components';
 
-export default function MatchesScreen({ matches = [], onBet, bets = [], onCancelBet, poolMap = {} }) {
+export default function MatchesScreen({ matches = [], onBet, bets = [], onCancelBet, poolMap = {}, allUsers = [] }) {
   const [filter, setFilter] = useState('all');
 
   const filters = [
@@ -54,7 +54,7 @@ export default function MatchesScreen({ matches = [], onBet, bets = [], onCancel
           </div>
           {byDate[date].map(m => {
             const myBets = bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending');
-            return <MatchCard key={m.id} match={m} onBet={onBet} myBets={myBets} onCancelBet={onCancelBet} poolData={poolMap[m.id]} />;
+            return <MatchCard key={m.id} match={m} onBet={onBet} myBets={myBets} onCancelBet={onCancelBet} poolData={poolMap[m.id]} allUsers={allUsers} />;
           })}
         </div>
       ))}

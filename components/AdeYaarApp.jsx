@@ -86,12 +86,21 @@ export default function AdeYaarApp() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Fetch all active pools (single request, returns map of match_id → pool data)
+  const [allUsers, setAllUsers] = useState([]);
+
+  // Fetch all active pools (single request) + all profiles
   const refreshPools = useCallback(() => {
     if (!user) return;
     fetch('/api/pool')
       .then(r => r.json())
-      .then(data => { if (data && typeof data === 'object') setPoolMap(data); })
+      .then(data => {
+        if (data && data.pools) {
+          setPoolMap(data.pools);
+          if (data.allUsers) setAllUsers(data.allUsers);
+        } else if (data && typeof data === 'object') {
+          setPoolMap(data);
+        }
+      })
       .catch(() => {});
   }, [user]);
 
@@ -178,7 +187,7 @@ export default function AdeYaarApp() {
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={balance} openBet={openBet}
-          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet} poolMap={poolMap}
+          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers}
         />
         {betSheet && (
           <PlaceBetSheet
@@ -203,8 +212,8 @@ export default function AdeYaarApp() {
           <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} />}
-            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} allUsers={allUsers} />}
+            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
             {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} />}

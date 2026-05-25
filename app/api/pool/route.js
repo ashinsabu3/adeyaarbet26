@@ -10,27 +10,31 @@ export async function GET(request) {
     return NextResponse.json({});
   }
 
-  // If no match_id, return all active pools (matches with pending bets)
+  // If no match_id, return all active pools (matches with pending bets) + all profiles
   if (!matchId) {
-    const { data: bets, error } = await supabase
-      .from('bets')
-      .select('match_id, user_id, pick, amount, profiles(display_name)')
-      .eq('status', 'pending');
+    const [betsRes, profilesRes] = await Promise.all([
+      supabase.from('bets').select('match_id, user_id, pick, amount, profiles(display_name)').eq('status', 'pending'),
+      supabase.from('profiles').select('id, display_name'),
+    ]);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    if (!bets.length) return NextResponse.json({});
+    if (betsRes.error) return NextResponse.json({ error: betsRes.error.message }, { status: 500 });
+
+    const allUsers = (profilesRes.data || []).map(p => ({ id: p.id, display_name: p.display_name }));
+    const bets = betsRes.data || [];
+
+    if (!bets.length) return NextResponse.json({ pools: {}, allUsers });
 
     const grouped = {};
     for (const b of bets) {
       (grouped[b.match_id] = grouped[b.match_id] || []).push(b);
     }
 
-    const result = {};
+    const pools = {};
     for (const [mid, mBets] of Object.entries(grouped)) {
       const total = mBets.reduce((s, b) => s + b.amount, 0);
       const bySide = { home: 0, away: 0, draw: 0 };
       mBets.forEach(b => { bySide[b.pick] = (bySide[b.pick] || 0) + b.amount; });
-      result[mid] = {
+      pools[mid] = {
         matchId: mid,
         total,
         bettorCount: new Set(mBets.map(b => b.user_id)).size,
@@ -44,7 +48,7 @@ export async function GET(request) {
         })),
       };
     }
-    return NextResponse.json(result);
+    return NextResponse.json({ pools, allUsers });
   }
 
   const { data: bets, error } = await supabase

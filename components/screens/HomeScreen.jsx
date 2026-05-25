@@ -15,7 +15,7 @@ function relativeTime(iso) {
   return `${Math.floor(hours / 24)}d`;
 }
 
-export default function HomeScreen({ matches = [], balance, bets = [], onBet, onCancelBet, onNav, user, poolMap = {} }) {
+export default function HomeScreen({ matches = [], balance, bets = [], onBet, onCancelBet, onNav, user, poolMap = {}, allUsers = [] }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 3);
   const featured = live[0] || upcoming[0];
@@ -49,7 +49,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
 
   return (
     <div>
-      {featured && <HeroMatch match={featured} onBet={onBet} />}
+      {featured && <HeroMatch match={featured} onBet={onBet} poolData={poolMap[featured.id]} allUsers={allUsers} />}
 
       {/* Stats strip */}
       <div className="stats-strip">
@@ -73,7 +73,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
         <>
           <SectionHead title="Live now" more="All matches" onMore={() => onNav('matches')} />
           <div className="date-group" style={{ marginBottom: 8 }}>
-            {live.map(m => <MatchCard key={m.id} match={m} onBet={onBet} myBets={bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending')} onCancelBet={onCancelBet} poolData={poolMap[m.id]} />)}
+            {live.map(m => <MatchCard key={m.id} match={m} onBet={onBet} myBets={bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending')} onCancelBet={onCancelBet} poolData={poolMap[m.id]} allUsers={allUsers} />)}
           </div>
         </>
       )}
@@ -81,7 +81,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
       {/* Upcoming */}
       <SectionHead title="Up next" more="Fixtures" onMore={() => onNav('matches')} />
       <div className="date-group" style={{ marginBottom: 8 }}>
-        {upcoming.map(m => <MatchCard key={m.id} match={m} onBet={onBet} myBets={bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending')} onCancelBet={onCancelBet} poolData={poolMap[m.id]} />)}
+        {upcoming.map(m => <MatchCard key={m.id} match={m} onBet={onBet} myBets={bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending')} onCancelBet={onCancelBet} poolData={poolMap[m.id]} allUsers={allUsers} />)}
       </div>
 
       {/* Friend activity */}
