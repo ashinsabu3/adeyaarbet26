@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import supabase from '@/lib/supabase';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -8,8 +8,6 @@ export async function GET(request) {
   if (!matchId) {
     return NextResponse.json({ error: 'match_id is required' }, { status: 400 });
   }
-
-  const supabase = await getDb();
   if (!supabase) {
     return NextResponse.json({ matchId, total: 0, bettorCount: 0, bySide: { home: 0, away: 0, draw: 0 }, bets: [] });
   }

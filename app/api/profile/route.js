@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import supabase from '@/lib/supabase';
 import { FRIENDS } from '@/lib/data';
 import { STARTING_BALANCE } from '@/lib/currency';
 
@@ -11,8 +11,6 @@ export async function GET(request) {
   if (!username && !id) {
     return NextResponse.json({ error: 'username or id is required' }, { status: 400 });
   }
-
-  const supabase = await getDb();
   if (!supabase) {
     const friend = FRIENDS.find(f => f.id === (username || id));
     if (!friend) {
@@ -41,22 +39,9 @@ export async function GET(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Compute balance from bets (ledger model), fall back to profiles.balance
-  const { data: bets } = await supabase
-    .from('bets')
-    .select('amount, status, payout')
-    .eq('user_id', profile.id);
-
-  let balance;
-  if (bets && bets.length > 0) {
-    balance = STARTING_BALANCE;
-    for (const b of bets) {
-      if (b.status !== 'cancelled') balance -= b.amount;
-      if (b.status === 'won') balance += (b.payout || 0);
-    }
-  } else {
-    balance = profile.balance ?? STARTING_BALANCE;
-  }
+  // Compute balance via PG function (single atomic call)
+  const { data: balanceData } = await supabase.rpc('compute_balance', { p_user_id: profile.id });
+  const balance = balanceData ?? profile.balance ?? STARTING_BALANCE;
 
   return NextResponse.json({ ...profile, balance });
 }

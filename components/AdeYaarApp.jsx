@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MATCHES, getMatch, getTeam } from '@/lib/data';
 import { STARTING_BALANCE, fmtMoney } from '@/lib/currency';
+import { computeBalance } from '@/lib/ledger';
 import { useUser } from '@/lib/hooks';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
@@ -44,13 +45,13 @@ export default function AdeYaarApp() {
   const [tab, setTab]           = useState('home');
   const [betSheet, setBetSheet] = useState(null);
   const [toast, setToast]       = useState(null);
-  const [balance, setBalance]   = useState(STARTING_BALANCE);
   const [bets, setBets]         = useState([]);
   const [cancelling, setCancelling] = useState(null);
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [poolInfo, setPoolInfo] = useState(null);
   const [poolMap, setPoolMap] = useState({});
+
+  const balance = computeBalance(bets);
 
   useEffect(() => {
     if (loading) return;
@@ -75,10 +76,6 @@ export default function AdeYaarApp() {
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setBets(data); })
       .catch(() => {});
-    fetch(`/api/profile?id=${user.id}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setBalance(data.balance); })
-      .catch(() => {});
   }, [user]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
@@ -98,16 +95,7 @@ export default function AdeYaarApp() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Load pool info when bet sheet opens
-  useEffect(() => {
-    if (!betSheet) { setPoolInfo(null); return; }
-    fetch(`/api/pool?match_id=${betSheet.match.id}`)
-      .then(r => r.json())
-      .then(setPoolInfo)
-      .catch(() => setPoolInfo(null));
-  }, [betSheet]);
-
-  // Fetch pool data for all matches that have any bets (for the pool table on cards)
+  // Fetch pool data for all matches that have any bets (for pool table + bet sheet)
   useEffect(() => {
     if (!bets.length) { setPoolMap({}); return; }
     const matchIds = [...new Set(bets.filter(b => b.status === 'pending').map(b => b.match_id || b.matchId))];
@@ -138,7 +126,6 @@ export default function AdeYaarApp() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setBalance(data.balance);
       setBets(prev => prev.map(b =>
         b.match_id === matchId && b.status === 'pending'
           ? { ...b, status: 'cancelled' }
@@ -180,7 +167,6 @@ export default function AdeYaarApp() {
       } else if (!res.ok) {
         throw new Error(data.error || 'Failed to place bet');
       } else {
-        setBalance(data.balance);
         refreshData();
       }
 
@@ -210,7 +196,7 @@ export default function AdeYaarApp() {
             match={betSheet.match}
             pick={betSheet.pick}
             balance={balance}
-            poolInfo={poolInfo}
+            poolInfo={poolMap[betSheet.match.id] || null}
             existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
             onClose={closeBet}
             onConfirm={confirmBet}
@@ -242,7 +228,7 @@ export default function AdeYaarApp() {
               match={betSheet.match}
               pick={betSheet.pick}
               balance={balance}
-              poolInfo={poolInfo}
+              poolInfo={poolMap[betSheet.match.id] || null}
               existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
               onClose={closeBet}
               onConfirm={confirmBet}

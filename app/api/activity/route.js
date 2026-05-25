@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import supabase from '@/lib/supabase';
 
 export async function GET(request) {
-  const supabase = await getDb();
+  
   if (!supabase) {
     return NextResponse.json([]);
   }
