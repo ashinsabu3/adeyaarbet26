@@ -5,7 +5,7 @@ import { MATCHES, getMatch, getTeam } from '@/lib/data';
 import { fmtMoney } from '@/lib/currency';
 import { computeBalance } from '@/lib/ledger';
 import { useUser } from '@/lib/hooks';
-import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
+import { AppHeader, TabBar, PlaceBetSheet, Toast, NewsTicker } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
 import BracketScreen from '@/components/screens/BracketScreen';
@@ -59,15 +59,6 @@ export default function AdeYaarApp() {
       window.location.href = '/login';
       return;
     }
-    fetch(`/api/profile?id=${user.id}`)
-      .then(r => {
-        if (r.status === 404) {
-          localStorage.removeItem('adeyaar_user');
-          import('@/lib/supabase-browser').then(m => m.default?.auth.signOut());
-          window.location.href = '/login';
-        }
-      })
-      .catch(() => {});
   }, [user, loading]);
 
   const refreshData = useCallback(() => {
@@ -95,19 +86,25 @@ export default function AdeYaarApp() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Fetch pool data for all matches that have any bets (for pool table + bet sheet)
-  useEffect(() => {
-    if (!bets.length) { setPoolMap({}); return; }
-    const matchIds = [...new Set(bets.filter(b => b.status === 'pending').map(b => b.match_id || b.matchId))];
-    if (!matchIds.length) { setPoolMap({}); return; }
-    Promise.all(
-      matchIds.map(id => fetch(`/api/pool?match_id=${id}`).then(r => r.json()).catch(() => null))
-    ).then(results => {
-      const map = {};
-      matchIds.forEach((id, i) => { if (results[i]) map[id] = results[i]; });
-      setPoolMap(map);
-    });
-  }, [bets]);
+  const [allUsers, setAllUsers] = useState([]);
+
+  // Fetch all active pools (single request) + all profiles
+  const refreshPools = useCallback(() => {
+    if (!user) return;
+    fetch('/api/pool')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.pools) {
+          setPoolMap(data.pools);
+          if (data.allUsers) setAllUsers(data.allUsers);
+        } else if (data && typeof data === 'object') {
+          setPoolMap(data);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
+  useEffect(() => { refreshPools(); }, [refreshPools]);
 
   const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
@@ -131,7 +128,7 @@ export default function AdeYaarApp() {
           ? { ...b, status: 'cancelled' }
           : b
       ));
-      setPoolMap(prev => { const next = { ...prev }; delete next[matchId]; return next; });
+      refreshPools();
       setToast(`Bet cancelled · ${fmtMoney(data.refunded)} refunded`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
@@ -168,6 +165,7 @@ export default function AdeYaarApp() {
         throw new Error(data.error || 'Failed to place bet');
       } else {
         refreshData();
+        refreshPools();
       }
 
       setBetSheet(null);
@@ -189,7 +187,7 @@ export default function AdeYaarApp() {
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={balance} openBet={openBet}
-          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet} poolMap={poolMap}
+          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers}
         />
         {betSheet && (
           <PlaceBetSheet
@@ -212,10 +210,11 @@ export default function AdeYaarApp() {
       <div className="phone-frame">
         <div className="app" data-theme={theme}>
           <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
+          <NewsTicker matches={matches} bets={bets} user={user} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} />}
-            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} allUsers={allUsers} />}
+            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
             {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} />}

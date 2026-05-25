@@ -118,6 +118,31 @@ export default function LeaderboardScreen({ user }) {
       }}>
         Minimum transactions · settled at end of World Cup
       </div>
+
+      {/* Activity feed */}
+      {activity.length > 0 && (
+        <div style={{ margin: '16px 16px 24px' }}>
+          <div className="section-head" style={{ marginBottom: 8 }}>
+            <div className="section-head__title" style={{ fontSize: 16 }}>Recent Activity</div>
+          </div>
+          <div className="card" style={{ padding: 0 }}>
+            {activity.map((item, i) => (
+              <div key={item.id || i} style={{
+                padding: '10px 14px',
+                borderBottom: i < activity.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 12, color: 'var(--ink-1)' }}>
+                  {formatActivity(item)}
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--ink-3)', whiteSpace: 'nowrap', marginLeft: 8 }}>
+                  {item.created_at ? timeAgo(item.created_at) : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

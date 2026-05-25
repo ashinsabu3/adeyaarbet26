@@ -72,6 +72,101 @@ export function LiveDot({ minute }) {
   );
 }
 
+// ── News Ticker ─────────────────────────────────────────────
+export function NewsTicker({ matches = [], bets = [], user }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const items = [];
+
+  const live = matches.filter(m => m.status === 'live');
+  const upcoming = matches.filter(m => m.status === 'upcoming').sort((a, b) => {
+    const da = new Date(`${a.date}T${a.time || '00:00'}`);
+    const db = new Date(`${b.date}T${b.time || '00:00'}`);
+    return da - db;
+  });
+  const next = upcoming[0];
+
+  if (live.length > 0) {
+    live.forEach(m => {
+      const h = getTeam(m.home);
+      const a = getTeam(m.away);
+      const score = m.score ? ` ${m.score[0]}–${m.score[1]}` : '';
+      items.push(`🔴 LIVE: ${h.name} vs ${a.name}${score}${m.minute ? ` (${m.minute}')` : ''}`);
+    });
+  }
+
+  if (next) {
+    const h = getTeam(next.home);
+    const a = getTeam(next.away);
+    const matchTime = new Date(`${next.date}T${next.time || '00:00'}:00+05:30`);
+    const diff = matchTime - now;
+    if (diff > 0) {
+      const days = Math.floor(diff / 86400000);
+      const hrs = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const parts = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hrs > 0) parts.push(`${hrs}h`);
+      parts.push(`${mins}m`);
+      items.push(`⚽ Next: ${h.name} vs ${a.name} in ${parts.join(' ')}`);
+    }
+
+    if (user) {
+      const hasBetOnNext = bets.some(b => (b.match_id || b.matchId) === next.id && b.status === 'pending');
+      if (!hasBetOnNext) {
+        items.push(`🚨 You haven't placed your bet for ${getTeam(next.home).name} vs ${getTeam(next.away).name}!`);
+      }
+    }
+  }
+
+  if (items.length === 0) {
+    items.push('🏆 FIFA World Cup 2026 · AdeYaar Betting League');
+  }
+
+  const text = items.join('     ·     ');
+
+  return (
+    <div style={{
+      overflow: 'hidden',
+      whiteSpace: 'nowrap',
+      background: 'rgba(0,0,0,0.4)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      padding: '6px 0',
+      position: 'relative',
+    }}>
+      <div style={{
+        display: 'inline-block',
+        animation: 'marquee 20s linear infinite',
+        paddingLeft: '100%',
+        fontSize: 12,
+        fontWeight: 700,
+        background: 'linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff, #ff0000)',
+        backgroundSize: '200% 100%',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+        animation: 'marquee 18s linear infinite, rainbow 3s linear infinite',
+      }}>
+        {text}
+      </div>
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-100%); }
+        }
+        @keyframes rainbow {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ── App Header ───────────────────────────────────────────────
 export function AppHeader({ balance, onTap, user }) {
   const netColor = balance >= 0 ? 'var(--win)' : 'var(--loss)';
@@ -132,7 +227,7 @@ export function SectionHead({ title, more, onMore }) {
 }
 
 // ── Match card ───────────────────────────────────────────────
-export function MatchCard({ match, onBet, myBets = [], onCancelBet, poolData }) {
+export function MatchCard({ match, onBet, myBets = [], onCancelBet, poolData, allUsers = [] }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const isLive = match.status === 'live';
@@ -194,7 +289,7 @@ export function MatchCard({ match, onBet, myBets = [], onCancelBet, poolData }) 
       )}
 
       {!isFinished && poolData && poolData.bets && poolData.bets.length > 0 && (
-        <MatchPoolTable poolData={poolData} home={home} away={away} />
+        <MatchPoolTable poolData={poolData} home={home} away={away} allUsers={allUsers} />
       )}
 
       {!isFinished && (
@@ -224,94 +319,97 @@ export function MatchCard({ match, onBet, myBets = [], onCancelBet, poolData }) 
 }
 
 // ── Pool table (bets per side with possible winnings) ────────
-function MatchPoolTable({ poolData, home, away }) {
+function MatchPoolTable({ poolData, home, away, allUsers = [] }) {
   const homeBets = poolData.bets.filter(b => b.pick === 'home');
   const awayBets = poolData.bets.filter(b => b.pick === 'away');
   const drawBets = poolData.bets.filter(b => b.pick === 'draw');
 
-  const tableStyle = {
-    width: '100%',
-    fontSize: 11,
-    borderCollapse: 'collapse',
-    margin: '0',
-  };
-  const thStyle = {
-    padding: '3px 6px',
-    textAlign: 'left',
-    fontWeight: 600,
-    borderBottom: '1px solid var(--border)',
-    color: 'var(--ink-2)',
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  };
-  const tdStyle = {
-    padding: '3px 6px',
-    borderBottom: '1px solid var(--border-light, var(--line, rgba(0,0,0,0.05)))',
-    color: 'var(--ink-1)',
-    maxWidth: 80,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  };
+  const bettorIds = new Set(poolData.bets.map(b => b.user_id));
+  const notBet = allUsers.filter(u => !bettorIds.has(u.id));
 
-  const renderSideTable = (bets, label) => {
-    if (bets.length === 0) return null;
-    return (
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.5px', color: 'var(--ink-2)', marginBottom: 4,
-          textAlign: 'center',
-        }}>{label}</div>
-        <table style={tableStyle}>
+  const renderSideTable = (bets, label) => (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{
+        fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.5px', color: '#fff', marginBottom: 6,
+        textAlign: 'center',
+      }}>{label}</div>
+      {bets.length === 0 ? (
+        <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)', padding: '8px 0' }}>
+          —
+        </div>
+      ) : (
+        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={thStyle}>User</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Bet</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Win</th>
+              <th style={{ padding: '3px 6px', textAlign: 'left', fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>User</th>
+              <th style={{ padding: '3px 6px', textAlign: 'right', fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Bet</th>
+              <th style={{ padding: '3px 6px', textAlign: 'right', fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Win</th>
             </tr>
           </thead>
           <tbody>
             {bets.map((b, i) => (
               <tr key={i}>
-                <td style={tdStyle}>{b.display_name}</td>
-                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                  {CURRENCY_SYMBOL}{b.amount}
-                </td>
-                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--win)' }}>
-                  {CURRENCY_SYMBOL}{b.possible_win}
-                </td>
+                <td style={{ padding: '4px 6px', color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>{b.display_name.split(' ')[0]}</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>{CURRENCY_SYMBOL}{b.amount}</td>
+                <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#4ade80', fontSize: 11 }}>{CURRENCY_SYMBOL}{b.possible_win}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-    );
-  };
+      )}
+    </div>
+  );
 
   return (
     <div style={{
-      margin: '8px 0 4px',
-      padding: '8px 10px',
-      background: 'var(--bg-2, var(--surface-2, rgba(0,0,0,0.04)))',
-      borderRadius: 8,
-      border: '1px solid var(--border-light, var(--line, rgba(0,0,0,0.06)))',
+      margin: '10px 0 6px',
+      padding: '12px',
+      background: 'rgba(0,0,0,0.3)',
+      borderRadius: 10,
+      border: '1px solid rgba(255,255,255,0.1)',
     }}>
       <div style={{
         fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.5px', color: 'var(--ink-3)', marginBottom: 6,
+        letterSpacing: '0.8px', color: 'rgba(255,255,255,0.5)', marginBottom: 10,
         textAlign: 'center',
       }}>
         Pool: {CURRENCY_SYMBOL}{poolData.total} · {poolData.bettorCount} bettor{poolData.bettorCount !== 1 ? 's' : ''}
       </div>
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 16 }}>
         {renderSideTable(homeBets, home.name)}
+        <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
         {renderSideTable(awayBets, away.name)}
       </div>
       {drawBets.length > 0 && (
-        <div style={{ marginTop: 6 }}>
+        <div style={{ marginTop: 10, maxWidth: '60%', marginLeft: 'auto', marginRight: 'auto' }}>
           {renderSideTable(drawBets, 'Draw')}
+        </div>
+      )}
+      {/* Proportional bar */}
+      {poolData.total > 0 && (() => {
+        const hPct = (poolData.bySide?.home || 0) / poolData.total * 100;
+        const aPct = (poolData.bySide?.away || 0) / poolData.total * 100;
+        const dPct = (poolData.bySide?.draw || 0) / poolData.total * 100;
+        return (
+          <div style={{
+            marginTop: 10, height: 6, borderRadius: 3, overflow: 'hidden',
+            display: 'flex', background: 'rgba(255,255,255,0.1)',
+          }}>
+            {hPct > 0 && <div style={{ width: `${hPct}%`, background: '#4ade80' }} />}
+            {dPct > 0 && <div style={{ width: `${dPct}%`, background: '#6b7280' }} />}
+            {aPct > 0 && <div style={{ width: `${aPct}%`, background: '#f87171' }} />}
+          </div>
+        );
+      })()}
+      {notBet.length > 0 && (
+        <div style={{
+          marginTop: 8, paddingTop: 6,
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          fontSize: 11, color: 'rgba(255,255,255,0.3)',
+          textAlign: 'center',
+        }}>
+          Haven&apos;t bet: {notBet.map(u => u.display_name.split(' ')[0]).join(', ')}
         </div>
       )}
     </div>
@@ -319,7 +417,7 @@ function MatchPoolTable({ poolData, home, away }) {
 }
 
 // ── Hero match ───────────────────────────────────────────────
-export function HeroMatch({ match, onBet }) {
+export function HeroMatch({ match, onBet, poolData, allUsers = [] }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const isLive = match.status === 'live';
@@ -366,6 +464,10 @@ export function HeroMatch({ match, onBet }) {
           Bet {away.code}
         </button>
       </div>
+
+      {poolData && poolData.bets && poolData.bets.length > 0 && (
+        <MatchPoolTable poolData={poolData} home={home} away={away} allUsers={allUsers} />
+      )}
     </div>
   );
 }
