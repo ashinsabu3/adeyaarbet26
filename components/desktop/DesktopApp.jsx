@@ -154,7 +154,6 @@ function DeskFix({ match, onBet, myBets = [], poolData }) {
   const away = getTeam(match.away);
   const IS_LIVE = match.status === 'live';
   const IS_FINISHED = match.status === 'finished';
-  const favOdds = match.odds ? Math.min(match.odds.home, match.odds.draw, match.odds.away) : null;
   const myTotal = myBets.reduce((s, b) => s + b.amount, 0);
 
   return (
@@ -184,20 +183,19 @@ function DeskFix({ match, onBet, myBets = [], poolData }) {
           )}
         </div>
       </div>
-      {!IS_FINISHED && match.odds && (
+      {!IS_FINISHED && (
         <div className="desk-fix__odds">
           {[
-            { k: 'home', l: '1',  v: match.odds.home },
-            { k: 'draw', l: 'X',  v: match.odds.draw },
-            { k: 'away', l: '2',  v: match.odds.away },
+            { k: 'home', l: home.code || '1' },
+            { k: 'draw', l: 'X' },
+            { k: 'away', l: away.code || '2' },
           ].map(o => (
             <button
               key={o.k}
-              className={'odds-btn ' + (o.v === favOdds ? 'fav' : '')}
+              className={'odds-btn ' + (myBets.some(b => b.pick === o.k) ? 'fav' : '')}
               onClick={() => onBet(match, o.k)}
             >
               <span className="odds-btn__label">{o.l}</span>
-              <span className="odds-btn__val">{o.v.toFixed(2)}</span>
             </button>
           ))}
         </div>
@@ -459,7 +457,7 @@ function DMatchesScreen({ matches, onBet, bets = [], poolMap = {} }) {
 
   let filtered = matches;
   if (filter === 'live')  filtered = matches.filter(m => m.status === 'live');
-  if (filter === 'today') filtered = matches.filter(m => m.date === '2026-06-29');
+  if (filter === 'today') filtered = matches.filter(m => m.date === new Date().toISOString().split('T')[0]);
   if (filter === 'r32')   filtered = matches.filter(m => m.stage === 'R32');
   if (filter === 'group') filtered = matches.filter(m => m.stage === 'GROUP');
 

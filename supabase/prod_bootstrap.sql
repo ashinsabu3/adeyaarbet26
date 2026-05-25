@@ -78,9 +78,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anon can insert profiles' AND tablename = 'profiles') THEN
     CREATE POLICY "Anon can insert profiles" ON public.profiles FOR INSERT TO anon WITH CHECK (true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Anon can update profiles' AND tablename = 'profiles') THEN
-    CREATE POLICY "Anon can update profiles" ON public.profiles FOR UPDATE TO anon USING (true);
-  END IF;
+  -- No anon UPDATE on profiles — mutations via SECURITY DEFINER functions only
   -- NOTE: No anon UPDATE on bets — all mutations go through SECURITY DEFINER functions
 END $$;
 
@@ -152,6 +150,9 @@ DECLARE
   v_cancelled integer;
   v_refunded integer;
 BEGIN
+  -- Lock profile row to serialize with place_bet (prevents race)
+  PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
+
   WITH cancelled AS (
     UPDATE public.bets SET status = 'cancelled'
       WHERE user_id = p_user_id AND match_id = p_match_id AND status = 'pending'

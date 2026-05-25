@@ -246,8 +246,12 @@ function MatchPoolTable({ poolData, home, away }) {
   };
   const tdStyle = {
     padding: '3px 6px',
-    borderBottom: '1px solid var(--border-light, rgba(0,0,0,0.05))',
+    borderBottom: '1px solid var(--border-light, var(--line, rgba(0,0,0,0.05)))',
     color: 'var(--ink-1)',
+    maxWidth: 80,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   };
 
   const renderSideTable = (bets, label) => {
@@ -289,9 +293,9 @@ function MatchPoolTable({ poolData, home, away }) {
     <div style={{
       margin: '8px 0 4px',
       padding: '8px 10px',
-      background: 'var(--bg-2, rgba(0,0,0,0.02))',
+      background: 'var(--bg-2, var(--surface-2, rgba(0,0,0,0.04)))',
       borderRadius: 8,
-      border: '1px solid var(--border-light, rgba(0,0,0,0.06))',
+      border: '1px solid var(--border-light, var(--line, rgba(0,0,0,0.06)))',
     }}>
       <div style={{
         fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
@@ -514,7 +518,12 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
         <button
           className="btn primary block lg"
           disabled={overBalance || submitting}
-          onClick={() => { setSubmitting(true); onConfirm({ matchId: match.id, pick: side, amount }); }}
+          onClick={async () => {
+            setSubmitting(true);
+            try { await onConfirm({ matchId: match.id, pick: side, amount }); }
+            catch { /* parent handles */ }
+            finally { setSubmitting(false); }
+          }}
         >
           {submitting ? 'Placing...' : overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
         </button>

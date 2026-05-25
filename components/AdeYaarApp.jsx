@@ -191,7 +191,7 @@ export default function AdeYaarApp() {
       setToast(`Bet placed · ${fmtMoney(amount)} on ${team ? team.name : 'Draw'}`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
-      setBetSheet(null);
+      // Don't close sheet on error — let user retry with same selection
     }
   }, [matches, user, refreshData]);
 
