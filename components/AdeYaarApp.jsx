@@ -5,7 +5,7 @@ import { MATCHES, getMatch, getTeam } from '@/lib/data';
 import { STARTING_BALANCE, fmtMoney } from '@/lib/currency';
 import { computeBalance } from '@/lib/ledger';
 import { useUser } from '@/lib/hooks';
-import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
+import { AppHeader, TabBar, PlaceBetSheet, Toast, NewsTicker } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
 import BracketScreen from '@/components/screens/BracketScreen';
@@ -210,6 +210,7 @@ export default function AdeYaarApp() {
       <div className="phone-frame">
         <div className="app" data-theme={theme}>
           <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
+          <NewsTicker matches={matches} bets={bets} user={user} />
 
           <div className="scroll">
             {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} allUsers={allUsers} />}

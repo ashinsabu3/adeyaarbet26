@@ -72,6 +72,101 @@ export function LiveDot({ minute }) {
   );
 }
 
+// ── News Ticker ─────────────────────────────────────────────
+export function NewsTicker({ matches = [], bets = [], user }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const items = [];
+
+  const live = matches.filter(m => m.status === 'live');
+  const upcoming = matches.filter(m => m.status === 'upcoming').sort((a, b) => {
+    const da = new Date(`${a.date}T${a.time || '00:00'}`);
+    const db = new Date(`${b.date}T${b.time || '00:00'}`);
+    return da - db;
+  });
+  const next = upcoming[0];
+
+  if (live.length > 0) {
+    live.forEach(m => {
+      const h = getTeam(m.home);
+      const a = getTeam(m.away);
+      const score = m.score ? ` ${m.score[0]}–${m.score[1]}` : '';
+      items.push(`🔴 LIVE: ${h.name} vs ${a.name}${score}${m.minute ? ` (${m.minute}')` : ''}`);
+    });
+  }
+
+  if (next) {
+    const h = getTeam(next.home);
+    const a = getTeam(next.away);
+    const matchTime = new Date(`${next.date}T${next.time || '00:00'}:00+05:30`);
+    const diff = matchTime - now;
+    if (diff > 0) {
+      const days = Math.floor(diff / 86400000);
+      const hrs = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const parts = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hrs > 0) parts.push(`${hrs}h`);
+      parts.push(`${mins}m`);
+      items.push(`⚽ Next: ${h.name} vs ${a.name} in ${parts.join(' ')}`);
+    }
+
+    if (user) {
+      const hasBetOnNext = bets.some(b => (b.match_id || b.matchId) === next.id && b.status === 'pending');
+      if (!hasBetOnNext) {
+        items.push(`🚨 You haven't placed your bet for ${getTeam(next.home).name} vs ${getTeam(next.away).name}!`);
+      }
+    }
+  }
+
+  if (items.length === 0) {
+    items.push('🏆 FIFA World Cup 2026 · AdeYaar Betting League');
+  }
+
+  const text = items.join('     ·     ');
+
+  return (
+    <div style={{
+      overflow: 'hidden',
+      whiteSpace: 'nowrap',
+      background: 'rgba(0,0,0,0.4)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      padding: '6px 0',
+      position: 'relative',
+    }}>
+      <div style={{
+        display: 'inline-block',
+        animation: 'marquee 20s linear infinite',
+        paddingLeft: '100%',
+        fontSize: 12,
+        fontWeight: 700,
+        background: 'linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff, #ff0000)',
+        backgroundSize: '200% 100%',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+        animation: 'marquee 18s linear infinite, rainbow 3s linear infinite',
+      }}>
+        {text}
+      </div>
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-100%); }
+        }
+        @keyframes rainbow {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ── App Header ───────────────────────────────────────────────
 export function AppHeader({ balance, onTap, user }) {
   return (
