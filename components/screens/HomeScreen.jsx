@@ -49,7 +49,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
 
   return (
     <div>
-      {featured && <HeroMatch match={featured} onBet={onBet} poolData={poolMap[featured.id]} allUsers={allUsers} />}
+      {featured && <HeroMatch match={featured} onBet={onBet} poolData={poolMap[featured.id]} allUsers={allUsers} myBets={bets.filter(b => (b.match_id || b.matchId) === featured.id && b.status === 'pending')} onCancelBet={onCancelBet} />}
 
       {/* Stats strip */}
       <div className="stats-strip">

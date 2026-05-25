@@ -194,7 +194,7 @@ export function TabBar({ active, onChange }) {
     { id: 'matches', label: 'Matches', icon: Icon.ball },
     { id: 'bracket', label: 'Bracket', icon: Icon.bracket },
     { id: 'leaders', label: 'Leaders', icon: Icon.trophy },
-    { id: 'bets',    label: 'My Bets', icon: Icon.receipt },
+    { id: 'bets',    label: 'Account', icon: Icon.receipt },
   ];
   return (
     <div className="tabbar">
@@ -417,10 +417,14 @@ function MatchPoolTable({ poolData, home, away, allUsers = [] }) {
 }
 
 // ── Hero match ───────────────────────────────────────────────
-export function HeroMatch({ match, onBet, poolData, allUsers = [] }) {
+export function HeroMatch({ match, onBet, poolData, allUsers = [], myBets = [], onCancelBet }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const isLive = match.status === 'live';
+  const myTotal = myBets.reduce((s, b) => s + b.amount, 0);
+  const hasBet = myTotal > 0;
+  const myPick = myBets[0]?.pick;
+  const pickLabel = myPick === 'home' ? home.code : myPick === 'away' ? away.code : myPick === 'draw' ? 'Draw' : '';
 
   return (
     <div className="hero">
@@ -464,6 +468,18 @@ export function HeroMatch({ match, onBet, poolData, allUsers = [] }) {
           Bet {away.code}
         </button>
       </div>
+
+      {hasBet && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
+          <span style={{ fontSize: 12, color: 'var(--win)' }}>Your bet: {fmtMoney(myTotal)} on {pickLabel}</span>
+          {!isLive && onCancelBet && (
+            <button
+              onClick={() => onCancelBet(match.id)}
+              style={{ background: 'none', border: 'none', color: '#f87171', fontSize: 11, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+            >Cancel</button>
+          )}
+        </div>
+      )}
 
       {poolData && poolData.bets && poolData.bets.length > 0 && (
         <MatchPoolTable poolData={poolData} home={home} away={away} allUsers={allUsers} />

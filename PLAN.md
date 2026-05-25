@@ -313,3 +313,11 @@ Stickers: FUAARK guy, war cat, eating guy, Jimmy Butler ???
 - **Zero balance**: war cat. Caption: "You're cooked."
 - **Loading spinner**: rotating sticker while data fetches.
 - **404 / error page**: Jimmy Butler staring at paper.
+
+---
+
+## Upcoming Features
+
+- **"My Bets" → "My Account"**: rename tab, add username change, show bets
+- **Profile pictures**: Supabase storage bucket for avatars
+- **Tab bar fix**: bottom nav going out of bounds on some viewports
