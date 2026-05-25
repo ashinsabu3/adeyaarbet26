@@ -529,7 +529,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
         </div>
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}>
 
         {/* Pool info */}
         {pool.bettorCount > 0 && (
@@ -665,6 +665,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
 
         <button
           className="btn primary block lg"
+          style={{ flexShrink: 0, marginTop: 12 }}
           disabled={overBalance || submitting}
           onClick={async () => {
             setSubmitting(true);
