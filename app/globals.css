@@ -392,7 +392,7 @@ body {
   position: fixed; inset: 0; z-index: 90;
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(8px);
-  display: flex; align-items: flex-end;
+  display: flex; align-items: flex-end; justify-content: center;
   animation: fadeIn 0.18s ease;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -405,6 +405,17 @@ body {
   border-top: 1px solid var(--line);
 }
 @keyframes slideUp { from { transform: translateY(40px); } to { transform: translateY(0); } }
+@media (min-width: 1024px) {
+  .sheet-backdrop { align-items: center; }
+  .sheet {
+    max-width: 440px; width: 100%;
+    border-radius: 20px;
+    max-height: 80vh;
+    border: 1px solid var(--line);
+    animation: scaleIn 0.2s ease;
+  }
+  @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+}
 .sheet-handle {
   width: 36px; height: 4px; border-radius: 2px;
   background: var(--line-strong); margin: 0 auto 14px;
