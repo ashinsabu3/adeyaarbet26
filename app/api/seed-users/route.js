@@ -13,6 +13,7 @@ const FRIENDS = [
 ];
 
 export async function GET() {
+  
   if (!supabase) {
     return NextResponse.json({
       users: FRIENDS.map(f => ({ ...f, balance: 5000 })),

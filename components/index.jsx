@@ -132,7 +132,7 @@ export function SectionHead({ title, more, onMore }) {
 }
 
 // ── Match card ───────────────────────────────────────────────
-export function MatchCard({ match, onBet, myBets = [], onCancelBet }) {
+export function MatchCard({ match, onBet, myBets = [], onCancelBet, poolData }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const isLive = match.status === 'live';
@@ -193,6 +193,10 @@ export function MatchCard({ match, onBet, myBets = [], onCancelBet }) {
         </div>
       )}
 
+      {!isFinished && poolData && poolData.bets && poolData.bets.length > 0 && (
+        <MatchPoolTable poolData={poolData} home={home} away={away} />
+      )}
+
       {!isFinished && (
         <div className={`match-card__footer ${hasBet ? 'has-bet' : 'no-bet'}`}>
           {hasBet ? (
@@ -213,6 +217,101 @@ export function MatchCard({ match, onBet, myBets = [], onCancelBet }) {
           ) : (
             <span>No bet placed</span>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Pool table (bets per side with possible winnings) ────────
+function MatchPoolTable({ poolData, home, away }) {
+  const homeBets = poolData.bets.filter(b => b.pick === 'home');
+  const awayBets = poolData.bets.filter(b => b.pick === 'away');
+  const drawBets = poolData.bets.filter(b => b.pick === 'draw');
+
+  const tableStyle = {
+    width: '100%',
+    fontSize: 11,
+    borderCollapse: 'collapse',
+    margin: '0',
+  };
+  const thStyle = {
+    padding: '3px 6px',
+    textAlign: 'left',
+    fontWeight: 600,
+    borderBottom: '1px solid var(--border)',
+    color: 'var(--ink-2)',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  };
+  const tdStyle = {
+    padding: '3px 6px',
+    borderBottom: '1px solid var(--border-light, var(--line, rgba(0,0,0,0.05)))',
+    color: 'var(--ink-1)',
+    maxWidth: 80,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  };
+
+  const renderSideTable = (bets, label) => {
+    if (bets.length === 0) return null;
+    return (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.5px', color: 'var(--ink-2)', marginBottom: 4,
+          textAlign: 'center',
+        }}>{label}</div>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thStyle}>User</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Bet</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Win</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bets.map((b, i) => (
+              <tr key={i}>
+                <td style={tdStyle}>{b.display_name}</td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                  {CURRENCY_SYMBOL}{b.amount}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--win)' }}>
+                  {CURRENCY_SYMBOL}{b.possible_win}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{
+      margin: '8px 0 4px',
+      padding: '8px 10px',
+      background: 'var(--bg-2, var(--surface-2, rgba(0,0,0,0.04)))',
+      borderRadius: 8,
+      border: '1px solid var(--border-light, var(--line, rgba(0,0,0,0.06)))',
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.5px', color: 'var(--ink-3)', marginBottom: 6,
+        textAlign: 'center',
+      }}>
+        Pool: {CURRENCY_SYMBOL}{poolData.total} · {poolData.bettorCount} bettor{poolData.bettorCount !== 1 ? 's' : ''}
+      </div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        {renderSideTable(homeBets, home.name)}
+        {renderSideTable(awayBets, away.name)}
+      </div>
+      {drawBets.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          {renderSideTable(drawBets, 'Draw')}
         </div>
       )}
     </div>
@@ -276,6 +375,7 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
   const presets = [100, 250, 500, 1000];
   const [amount, setAmount] = useState(250);
   const [side, setSide] = useState(pick || 'home');
+  const [submitting, setSubmitting] = useState(false);
 
   const home = getTeam(match.home);
   const away = getTeam(match.away);
@@ -444,10 +544,15 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
 
         <button
           className="btn primary block lg"
-          style={{ flexShrink: 0, marginTop: 12 }}
-          onClick={() => onConfirm({ matchId: match.id, pick: side, amount })}
+          disabled={overBalance || submitting}
+          onClick={async () => {
+            setSubmitting(true);
+            try { await onConfirm({ matchId: match.id, pick: side, amount }); }
+            catch { /* parent handles */ }
+            finally { setSubmitting(false); }
+          }}
         >
-          {`Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
+          {submitting ? 'Placing...' : overBalance ? 'Insufficient balance' : `Place ${CURRENCY_SYMBOL}${amount.toLocaleString('en-IN')} bet`}
         </button>
       </div>
     </div>

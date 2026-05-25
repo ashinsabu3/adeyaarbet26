@@ -12,6 +12,7 @@ export async function GET(request) {
 
   const supabase = await createSupabaseServer();
 
+
   if (!supabase) {
     const friend = FRIENDS.find(f => f.id === (username || id));
     if (!friend) {
@@ -25,7 +26,7 @@ export async function GET(request) {
     });
   }
 
-  let query = supabase.from('profiles').select('id, username, display_name');
+  let query = supabase.from('profiles').select('id, username, display_name, balance');
   if (id) {
     query = query.eq('id', id);
   } else {

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabase';
 import { FRIENDS } from '@/lib/data';
+import { computeBalance } from '@/lib/ledger';
+
+
 export async function GET() {
   if (!supabase) {
     const mock = FRIENDS.map(f => ({
@@ -12,7 +15,6 @@ export async function GET() {
     return NextResponse.json(mock);
   }
 
-  // Compute balance from bets (ledger model)
   const { data: profiles, error: pErr } = await supabase
     .from('profiles')
     .select('id, username, display_name');
@@ -25,16 +27,15 @@ export async function GET() {
 
   if (bErr) return NextResponse.json({ error: bErr.message }, { status: 500 });
 
-  const balanceMap = {};
+  // Group bets by user, compute balance via shared ledger formula
+  const betsByUser = {};
   for (const b of bets) {
-    if (!balanceMap[b.user_id]) balanceMap[b.user_id] = { spent: 0, won: 0 };
-    if (b.status !== 'cancelled') balanceMap[b.user_id].spent += b.amount;
-    if (b.status === 'won') balanceMap[b.user_id].won += (b.payout || 0);
+    (betsByUser[b.user_id] = betsByUser[b.user_id] || []).push(b);
   }
 
   const result = profiles.map(p => ({
     ...p,
-    balance: (balanceMap[p.id]?.won || 0) - (balanceMap[p.id]?.spent || 0),
+    balance: computeBalance(betsByUser[p.id] || []),
   }));
 
   result.sort((a, b) => b.balance - a.balance);

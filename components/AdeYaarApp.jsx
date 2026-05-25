@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MATCHES, getMatch, getTeam } from '@/lib/data';
 import { fmtMoney } from '@/lib/currency';
+import { computeBalance } from '@/lib/ledger';
 import { useUser } from '@/lib/hooks';
 import { AppHeader, TabBar, PlaceBetSheet, Toast } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
@@ -44,12 +45,13 @@ export default function AdeYaarApp() {
   const [tab, setTab]           = useState('home');
   const [betSheet, setBetSheet] = useState(null);
   const [toast, setToast]       = useState(null);
-  const [balance, setBalance]   = useState(0);
   const [bets, setBets]         = useState([]);
   const [cancelling, setCancelling] = useState(null);
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [poolInfo, setPoolInfo] = useState(null);
+  const [poolMap, setPoolMap] = useState({});
+
+  const balance = computeBalance(bets);
 
   useEffect(() => {
     if (loading) return;
@@ -74,10 +76,6 @@ export default function AdeYaarApp() {
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setBets(data); })
       .catch(() => {});
-    fetch(`/api/profile?id=${user.id}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setBalance(data.balance); })
-      .catch(() => {});
   }, [user]);
 
   useEffect(() => { refreshData(); }, [refreshData]);
@@ -97,14 +95,19 @@ export default function AdeYaarApp() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Load pool info when bet sheet opens
+  // Fetch pool data for all matches that have any bets (for pool table + bet sheet)
   useEffect(() => {
-    if (!betSheet) { setPoolInfo(null); return; }
-    fetch(`/api/pool?match_id=${betSheet.match.id}`)
-      .then(r => r.json())
-      .then(setPoolInfo)
-      .catch(() => setPoolInfo(null));
-  }, [betSheet]);
+    if (!bets.length) { setPoolMap({}); return; }
+    const matchIds = [...new Set(bets.filter(b => b.status === 'pending').map(b => b.match_id || b.matchId))];
+    if (!matchIds.length) { setPoolMap({}); return; }
+    Promise.all(
+      matchIds.map(id => fetch(`/api/pool?match_id=${id}`).then(r => r.json()).catch(() => null))
+    ).then(results => {
+      const map = {};
+      matchIds.forEach((id, i) => { if (results[i]) map[id] = results[i]; });
+      setPoolMap(map);
+    });
+  }, [bets]);
 
   const matches = MATCHES.map(m => mergeWithFifa(m, fifaData));
 
@@ -123,12 +126,12 @@ export default function AdeYaarApp() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setBalance(data.balance);
       setBets(prev => prev.map(b =>
         b.match_id === matchId && b.status === 'pending'
           ? { ...b, status: 'cancelled' }
           : b
       ));
+      setPoolMap(prev => { const next = { ...prev }; delete next[matchId]; return next; });
       setToast(`Bet cancelled · ${fmtMoney(data.refunded)} refunded`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
@@ -160,12 +163,10 @@ export default function AdeYaarApp() {
       const data = await res.json();
 
       if (res.status === 503) {
-        setBalance(b => b - amount);
-        setBets(prev => [{ id: Date.now(), match_id: matchId, pick, amount, status: 'pending', created_at: new Date().toISOString() }, ...prev]);
+        throw new Error('Database unavailable — bet not placed');
       } else if (!res.ok) {
         throw new Error(data.error || 'Failed to place bet');
       } else {
-        setBalance(data.balance);
         refreshData();
       }
 
@@ -176,7 +177,7 @@ export default function AdeYaarApp() {
       setToast(`Bet placed · ${fmtMoney(amount)} on ${team ? team.name : 'Draw'}`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
-      setBetSheet(null);
+      // Don't close sheet on error — let user retry with same selection
     }
   }, [matches, user, refreshData]);
 
@@ -188,14 +189,14 @@ export default function AdeYaarApp() {
         <DesktopApp
           tab={tab} setTab={setTab}
           balance={balance} openBet={openBet}
-          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet}
+          matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet} poolMap={poolMap}
         />
         {betSheet && (
           <PlaceBetSheet
             match={betSheet.match}
             pick={betSheet.pick}
             balance={balance}
-            poolInfo={poolInfo}
+            poolInfo={poolMap[betSheet.match.id] || null}
             existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
             onClose={closeBet}
             onConfirm={confirmBet}
@@ -213,8 +214,8 @@ export default function AdeYaarApp() {
           <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} />}
-            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} />}
+            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} />}
+            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
             {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} />}
@@ -227,7 +228,7 @@ export default function AdeYaarApp() {
               match={betSheet.match}
               pick={betSheet.pick}
               balance={balance}
-              poolInfo={poolInfo}
+              poolInfo={poolMap[betSheet.match.id] || null}
               existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
               onClose={closeBet}
               onConfirm={confirmBet}

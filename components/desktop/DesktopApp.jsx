@@ -152,12 +152,11 @@ function DesktopShell({ tab, onNav, balance, children, title, sub, hideSearch, u
 }
 
 // ── Desktop fixture row ───────────────────────────────────────
-function DeskFix({ match, onBet, myBets = [] }) {
+function DeskFix({ match, onBet, myBets = [], poolData }) {
   const home = getTeam(match.home);
   const away = getTeam(match.away);
   const IS_LIVE = match.status === 'live';
   const IS_FINISHED = match.status === 'finished';
-  const favOdds = match.odds ? Math.min(match.odds.home, match.odds.draw, match.odds.away) : null;
   const myTotal = myBets.reduce((s, b) => s + b.amount, 0);
 
   return (
@@ -196,7 +195,7 @@ function DeskFix({ match, onBet, myBets = [] }) {
           ].map(o => (
             <button
               key={o.k}
-              className={'odds-btn ' + (o.v != null && o.v === favOdds ? 'fav' : '')}
+              className={'odds-btn ' + (myBets.some(b => b.pick === o.k) ? 'fav' : '')}
               onClick={() => onBet(match, o.k)}
             >
               <span className="odds-btn__label">{o.l}</span>
@@ -205,12 +204,64 @@ function DeskFix({ match, onBet, myBets = [] }) {
           ))}
         </div>
       )}
+      {!IS_FINISHED && poolData && poolData.bets && poolData.bets.length > 0 && (
+        <DeskPoolTable poolData={poolData} home={home} away={away} />
+      )}
+    </div>
+  );
+}
+
+function DeskPoolTable({ poolData, home, away }) {
+  const homeBets = poolData.bets.filter(b => b.pick === 'home');
+  const awayBets = poolData.bets.filter(b => b.pick === 'away');
+  const drawBets = poolData.bets.filter(b => b.pick === 'draw');
+
+  const tdStyle = { padding: '2px 6px', fontSize: 11, borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.06))' };
+  const thStyle = { ...tdStyle, fontWeight: 600, color: 'var(--ink-3)', fontSize: 10, textTransform: 'uppercase' };
+
+  const renderSide = (bets, label) => {
+    if (!bets.length) return null;
+    return (
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink-2)', textAlign: 'center', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={thStyle}>User</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Bet</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Win</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bets.map((b, i) => (
+              <tr key={i}>
+                <td style={tdStyle}>{b.display_name}</td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{CURRENCY_SYMBOL}{b.amount}</td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--win)' }}>{CURRENCY_SYMBOL}{b.possible_win}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ margin: '6px 0 0', padding: '6px 8px', background: 'var(--bg-2, rgba(0,0,0,0.15))', borderRadius: 6, border: '1px solid var(--border-light, rgba(255,255,255,0.06))' }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--ink-3)', textAlign: 'center', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        Pool: {CURRENCY_SYMBOL}{poolData.total} · {poolData.bettorCount} bettor{poolData.bettorCount !== 1 ? 's' : ''}
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {renderSide(homeBets, home.name)}
+        {renderSide(awayBets, away.name)}
+      </div>
+      {drawBets.length > 0 && <div style={{ marginTop: 4 }}>{renderSide(drawBets, 'Draw')}</div>}
     </div>
   );
 }
 
 // ── Desktop Home ──────────────────────────────────────────────
-function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [] }) {
+function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [], poolMap = {} }) {
   const live = matches.filter(m => m.status === 'live');
   const upcoming = matches.filter(m => m.status === 'upcoming').slice(0, 6);
   const featured = live[0] || upcoming[0];
@@ -344,7 +395,7 @@ function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [] }) {
             <button className="more" onClick={() => onNav('matches')}>See all →</button>
           </div>
           {[...live, ...upcoming].slice(0, 5).map(m => (
-            <DeskFix key={m.id} match={m} onBet={onBet} />
+            <DeskFix key={m.id} match={m} onBet={onBet} poolData={poolMap[m.id]} />
           ))}
         </div>
 
@@ -398,7 +449,7 @@ function DHomeScreen({ matches, balance, onBet, onNav, user, bets = [] }) {
 }
 
 // ── Desktop Matches ───────────────────────────────────────────
-function DMatchesScreen({ matches, onBet, bets = [] }) {
+function DMatchesScreen({ matches, onBet, bets = [], poolMap = {} }) {
   const [filter, setFilter] = useState('all');
   const filters = [
     { id: 'all',   label: 'All fixtures' },
@@ -410,7 +461,7 @@ function DMatchesScreen({ matches, onBet, bets = [] }) {
 
   let filtered = matches;
   if (filter === 'live')  filtered = matches.filter(m => m.status === 'live');
-  if (filter === 'today') filtered = matches.filter(m => m.date === '2026-06-29');
+  if (filter === 'today') filtered = matches.filter(m => m.date === new Date().toISOString().split('T')[0]);
   if (filter === 'r32')   filtered = matches.filter(m => m.stage === 'R32');
   if (filter === 'group') filtered = matches.filter(m => m.stage === 'GROUP');
 
@@ -441,7 +492,7 @@ function DMatchesScreen({ matches, onBet, bets = [] }) {
           <div className="desk-grid fixtures" style={{ marginTop: 0 }}>
             {byDate[date].map(m => {
               const myBets = bets.filter(b => (b.match_id || b.matchId) === m.id && b.status === 'pending');
-              return <DeskFix key={m.id} match={m} onBet={onBet} myBets={myBets} />;
+              return <DeskFix key={m.id} match={m} onBet={onBet} myBets={myBets} poolData={poolMap[m.id]} />;
             })}
           </div>
         </div>
@@ -784,7 +835,7 @@ function DBetsScreen({ user, onCancelBet, bets = [] }) {
 }
 
 // ── Desktop App (root) ────────────────────────────────────────
-export default function DesktopApp({ tab, setTab, balance, openBet, matches, user, onLogout, bets = [], onCancelBet }) {
+export default function DesktopApp({ tab, setTab, balance, openBet, matches, user, onLogout, bets = [], onCancelBet, poolMap = {} }) {
   const titles = {
     home:    { title: 'Dashboard',    sub: 'FIFA World Cup 2026 · Group stage underway' },
     matches: { title: 'Fixtures',     sub: 'All matches · group stage + knockout' },
@@ -800,8 +851,8 @@ export default function DesktopApp({ tab, setTab, balance, openBet, matches, use
       title={t.title} sub={t.sub}
       hideSearch={tab === 'bracket'} user={user} onLogout={onLogout}
     >
-      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} bets={bets} />}
-      {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} bets={bets} />}
+      {tab === 'home'    && <DHomeScreen matches={matches} balance={balance} onBet={openBet} onNav={setTab} user={user} bets={bets} poolMap={poolMap} />}
+      {tab === 'matches' && <DMatchesScreen matches={matches} onBet={openBet} bets={bets} poolMap={poolMap} />}
       {tab === 'bracket' && <DBracketScreen matches={matches} />}
       {tab === 'leaders' && <DLeaderboardScreen user={user} />}
       {tab === 'bets'    && <DBetsScreen user={user} onCancelBet={onCancelBet} bets={bets} />}
