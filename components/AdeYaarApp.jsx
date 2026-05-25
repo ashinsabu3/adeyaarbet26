@@ -248,7 +248,7 @@ export default function AdeYaarApp() {
               {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
               {tab === 'bracket' && <BracketScreen matches={matches} />}
               {tab === 'leaders' && <LeaderboardScreen user={user} />}
-              {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} onProfileUpdate={refreshUser} />}
+              {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} onProfileUpdate={refreshUser} wallet={wallet} />}
             </ErrorBoundary>
           </div>
 

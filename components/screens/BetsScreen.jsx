@@ -194,22 +194,25 @@ function SettlementCard({ user }) {
       .catch(() => {});
   }, [user]);
 
-  if (myPosition === null || myPosition === 0) return null;
+  if (myPosition === null) return null;
 
   const isOwing = myPosition < 0;
+  const isEven = myPosition === 0;
   return (
     <div style={{
       margin: '0 16px 12px', padding: '14px 16px', borderRadius: 12,
-      background: isOwing ? 'rgba(248,113,113,0.08)' : 'rgba(74,222,128,0.08)',
-      border: `1px solid ${isOwing ? 'rgba(248,113,113,0.2)' : 'rgba(74,222,128,0.2)'}`,
+      background: isEven ? 'rgba(255,255,255,0.04)' : isOwing ? 'rgba(248,113,113,0.08)' : 'rgba(74,222,128,0.08)',
+      border: `1px solid ${isEven ? 'rgba(255,255,255,0.08)' : isOwing ? 'rgba(248,113,113,0.2)' : 'rgba(74,222,128,0.2)'}`,
     }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
         Real money settlement
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: isOwing ? 'var(--loss)' : 'var(--win)' }}>
-        {isOwing
-          ? `You owe ${CURRENCY_SYMBOL}${Math.abs(myPosition).toLocaleString('en-IN')}`
-          : `You receive ${CURRENCY_SYMBOL}${myPosition.toLocaleString('en-IN')}`
+      <div style={{ fontSize: 18, fontWeight: 700, color: isEven ? 'var(--ink-2)' : isOwing ? 'var(--loss)' : 'var(--win)' }}>
+        {isEven
+          ? "You're even — no payment needed"
+          : isOwing
+            ? `You owe ${CURRENCY_SYMBOL}${Math.abs(myPosition).toLocaleString('en-IN')}`
+            : `You receive ${CURRENCY_SYMBOL}${myPosition.toLocaleString('en-IN')}`
         }
       </div>
       <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
@@ -219,7 +222,7 @@ function SettlementCard({ user }) {
   );
 }
 
-export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpdate }) {
+export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpdate, wallet }) {
   const [tab, setTab] = useState('pending');
 
   const filtered = useMemo(() => {
@@ -244,6 +247,12 @@ export default function BetsScreen({ bets = [], onCancelBet, user, onProfileUpda
     <div>
       <AccountSection user={user} onProfileUpdate={onProfileUpdate} />
       <SettlementCard user={user} />
+
+      {/* Wallet balance + topup */}
+      <div style={{ padding: '0 16px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Play wallet</span>
+        <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{fmtMoney(wallet)}</span>
+      </div>
       <TopupSection user={user} onTopup={onProfileUpdate} />
 
       <div className="section-head" style={{ marginTop: 0 }}>
