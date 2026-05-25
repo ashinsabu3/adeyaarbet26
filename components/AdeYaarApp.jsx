@@ -47,6 +47,7 @@ export default function AdeYaarApp() {
   const [toast, setToast]       = useState(null);
   const [bets, setBets]         = useState([]);
   const [cancelling, setCancelling] = useState(null);
+  const [placing, setPlacing] = useState(false);
   const [fifaData, setFifaData] = useState(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [poolMap, setPoolMap] = useState({});
@@ -145,7 +146,8 @@ export default function AdeYaarApp() {
   }, []);
 
   const confirmBet = useCallback(async ({ matchId, pick, amount }) => {
-    if (!user) return;
+    if (!user || placing) return;
+    setPlacing(true);
     try {
       const liveMatch = matches.find(m => m.id === matchId);
       if (liveMatch && liveMatch.status === 'finished') {
@@ -175,9 +177,10 @@ export default function AdeYaarApp() {
       setToast(`Bet placed · ${fmtMoney(amount)} on ${team ? team.name : 'Draw'}`);
     } catch (err) {
       setToast(`Error: ${err.message}`);
-      // Don't close sheet on error — let user retry with same selection
+    } finally {
+      setPlacing(false);
     }
-  }, [matches, user, refreshData]);
+  }, [matches, user, placing, refreshData, refreshPools]);
 
   if (loading || !user) return null;
 
@@ -217,7 +220,7 @@ export default function AdeYaarApp() {
             {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
             {tab === 'bracket' && <BracketScreen matches={matches} />}
             {tab === 'leaders' && <LeaderboardScreen user={user} />}
-            {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} />}
+            {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} />}
           </div>
 
           <TabBar active={tab} onChange={setTab} />
