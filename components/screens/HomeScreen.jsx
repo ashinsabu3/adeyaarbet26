@@ -122,7 +122,10 @@ function formatActivityText(a) {
     return `bet ${CURRENCY_SYMBOL}${a.payload.amount} on ${pickTeam} · ${matchLabel}`;
   }
   if (a.type === 'bet_cancelled' && a.payload) {
-    return `cancelled bet · refund ${CURRENCY_SYMBOL}${a.payload.refunded} · ${matchLabel}`;
+    if (a.payload.reason === 'side_switch') {
+      return `switched sides · ${matchLabel}`;
+    }
+    return `cancelled bet${a.payload.refunded ? ` · refund ${CURRENCY_SYMBOL}${a.payload.refunded}` : ''} · ${matchLabel}`;
   }
   if (a.type === 'bet_won' && a.payload) {
     return `won ${CURRENCY_SYMBOL}${a.payload.payout} · ${matchLabel}`;
