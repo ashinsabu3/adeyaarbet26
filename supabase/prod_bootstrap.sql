@@ -118,8 +118,18 @@ BEGIN
   PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'User not found'; END IF;
 
+  -- Reject bets on already-resolved matches
+  IF EXISTS (SELECT 1 FROM public.bets WHERE match_id = p_match_id AND status IN ('won', 'lost') LIMIT 1) THEN
+    RAISE EXCEPTION 'Match already resolved';
+  END IF;
+
   SELECT pick INTO v_existing_pick FROM public.bets
     WHERE user_id = p_user_id AND match_id = p_match_id AND status = 'pending' FOR UPDATE;
+
+  -- Reject duplicate same-side bet
+  IF v_existing_pick IS NOT NULL AND v_existing_pick = p_pick THEN
+    RAISE EXCEPTION 'Already bet on this side';
+  END IF;
 
   IF v_existing_pick IS NOT NULL AND v_existing_pick != p_pick THEN
     UPDATE public.bets SET status = 'cancelled'
