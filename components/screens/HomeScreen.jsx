@@ -39,6 +39,7 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
           setActivity(data.map(a => ({
             id: a.id,
             username: a.profiles?.display_name || a.profiles?.username || 'Unknown',
+            avatar_url: a.profiles?.avatar_url || null,
             text: formatActivityText(a),
             createdAt: a.created_at,
           })));
@@ -94,7 +95,9 @@ export default function HomeScreen({ matches = [], balance, bets = [], onBet, on
         )}
         {activity.map(a => (
           <div key={a.id} className="ticker-item">
-            <div className="ticker-avatar">{a.username[0]}</div>
+            <div className="ticker-avatar" style={a.avatar_url ? { backgroundImage: `url(${a.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+              {!a.avatar_url && a.username[0]}
+            </div>
             <div style={{ flex: 1 }}>
               <span style={{ fontWeight: 600 }}>{a.username}</span>{' '}
               <span style={{ color: 'var(--ink-2)' }}>{a.text}</span>

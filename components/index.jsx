@@ -1,7 +1,7 @@
 'use client';
 
 import { getTeam, getFriend, fmtCompact, fmtDate, fmtDay, getMatch, fmtTimeIST } from '@/lib/data';
-import { fmtMoney, fmtNet, CURRENCY_SYMBOL } from '@/lib/currency';
+import { fmtMoney, CURRENCY_SYMBOL } from '@/lib/currency';
 import { useState, useEffect } from 'react';
 
 // ── Icons ────────────────────────────────────────────────────
@@ -169,7 +169,6 @@ export function NewsTicker({ matches = [], bets = [], user }) {
 
 // ── App Header ───────────────────────────────────────────────
 export function AppHeader({ balance, onTap, user }) {
-  const netColor = balance >= 0 ? 'var(--win)' : 'var(--loss)';
   return (
     <div className="app-header">
       <div className="app-header__brand">
@@ -179,8 +178,10 @@ export function AppHeader({ balance, onTap, user }) {
       <div className="app-header__right">
         {user && <span className="app-header__user">{user.display_name || user.username}</span>}
         <button className="balance-pill" onClick={onTap}>
-          <div className="balance-pill__icon">{user?.display_name?.[0] || '₹'}</div>
-          <span className="balance-pill__amt" style={{ color: netColor }}>{fmtNet(balance)}</span>
+          <div className="balance-pill__icon" style={user?.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center', fontSize: 0 } : undefined}>
+            {!user?.avatar_url && (user?.display_name?.[0] || '₹')}
+          </div>
+          <span className="balance-pill__amt">{fmtMoney(balance)}</span>
         </button>
       </div>
     </div>
@@ -502,6 +503,8 @@ export function PlaceBetSheet({ match, pick, onClose, onConfirm, balance, poolIn
   const existingPick = existingBets.length > 0 ? existingBets[0].pick : null;
   const existingTotal = existingBets.reduce((s, b) => s + b.amount, 0);
   const isSwitching = existingPick && existingPick !== side;
+
+  const overBalance = amount > balance;
 
   // Compute potential payout from pool info
   const pool = poolInfo || {};

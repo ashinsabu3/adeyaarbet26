@@ -1,13 +1,39 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Component } from 'react';
 import { MATCHES, getMatch, getTeam } from '@/lib/data';
 import { fmtMoney } from '@/lib/currency';
-import { computeBalance } from '@/lib/ledger';
+import { computeBalance, computeWallet } from '@/lib/ledger';
 import { useUser } from '@/lib/hooks';
 import { AppHeader, TabBar, PlaceBetSheet, Toast, NewsTicker } from '@/components';
 import HomeScreen from '@/components/screens/HomeScreen';
 import MatchesScreen from '@/components/screens/MatchesScreen';
+
+class ErrorBoundary extends Component {
+  state = { error: null };
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div style={{ color: '#f87171', fontSize: 14, marginBottom: 8 }}>
+            Something went wrong
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 16, fontFamily: 'monospace' }}>
+            {this.state.error.message}
+          </div>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '8px 16px', fontSize: 12, cursor: 'pointer' }}
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import BracketScreen from '@/components/screens/BracketScreen';
 import LeaderboardScreen from '@/components/screens/LeaderboardScreen';
 import BetsScreen from '@/components/screens/BetsScreen';
@@ -53,6 +79,7 @@ export default function AdeYaarApp() {
   const [poolMap, setPoolMap] = useState({});
 
   const balance = computeBalance(bets);
+  const wallet = computeWallet(bets);
 
   useEffect(() => {
     if (loading) return;
@@ -189,14 +216,14 @@ export default function AdeYaarApp() {
       <>
         <DesktopApp
           tab={tab} setTab={setTab}
-          balance={balance} openBet={openBet}
+          balance={wallet} openBet={openBet}
           matches={matches} user={user} onLogout={handleLogout} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers}
         />
         {betSheet && (
           <PlaceBetSheet
             match={betSheet.match}
             pick={betSheet.pick}
-            balance={balance}
+            balance={wallet}
             poolInfo={poolMap[betSheet.match.id] || null}
             existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
             onClose={closeBet}
@@ -212,15 +239,17 @@ export default function AdeYaarApp() {
     <div className="stage">
       <div className="phone-frame">
         <div className="app" data-theme={theme}>
-          <AppHeader balance={balance} user={user} onTap={() => setTab('bets')} />
+          <AppHeader balance={wallet} user={user} onTap={() => setTab('bets')} />
           <NewsTicker matches={matches} bets={bets} user={user} />
 
           <div className="scroll">
-            {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} allUsers={allUsers} />}
-            {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
-            {tab === 'bracket' && <BracketScreen matches={matches} />}
-            {tab === 'leaders' && <LeaderboardScreen user={user} />}
-            {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} onProfileUpdate={refreshUser} />}
+            <ErrorBoundary>
+              {tab === 'home'    && <HomeScreen matches={matches} balance={balance} bets={bets} onBet={openBet} onCancelBet={cancelBet} onNav={setTab} user={user} poolMap={poolMap} allUsers={allUsers} />}
+              {tab === 'matches' && <MatchesScreen matches={matches} onBet={openBet} bets={bets} onCancelBet={cancelBet} poolMap={poolMap} allUsers={allUsers} />}
+              {tab === 'bracket' && <BracketScreen matches={matches} />}
+              {tab === 'leaders' && <LeaderboardScreen user={user} />}
+              {tab === 'bets'    && <BetsScreen bets={bets} onCancelBet={cancelBet} user={user} onProfileUpdate={refreshUser} />}
+            </ErrorBoundary>
           </div>
 
           <TabBar active={tab} onChange={setTab} />
@@ -229,7 +258,7 @@ export default function AdeYaarApp() {
             <PlaceBetSheet
               match={betSheet.match}
               pick={betSheet.pick}
-              balance={balance}
+              balance={wallet}
               poolInfo={poolMap[betSheet.match.id] || null}
               existingBets={bets.filter(b => (b.match_id || b.matchId) === betSheet.match.id && b.status === 'pending')}
               onClose={closeBet}
